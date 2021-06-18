@@ -108,7 +108,7 @@ class HS:
         best_matching = None
         stalled_rounds = 0
         constrain_types = ['worker_overflow', 'overflow_underflow', 'underflow_worker']
-        while stalled_rounds < 10:
+        while stalled_rounds < 3:
             shuffle(constrain_types)
             for constrain_type in constrain_types:
                 

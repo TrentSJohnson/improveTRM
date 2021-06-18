@@ -75,7 +75,7 @@ class Local_Ratio:
         possible_edges_ = sorted(copy.deepcopy(possible_edges), key=lambda e: self.neighborhood_weight(e,non_zero,x))
 
 
-        for e in tqdm(range(len(possible_edges_))):
+        for e in range(len(possible_edges_)):
             i = 0
             edge = possible_edges_[i]
             while self.neighborhood_weight(edge,non_zero,x) > 2:

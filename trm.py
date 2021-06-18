@@ -1,5 +1,6 @@
 from networkx.algorithms import bipartite
 import networkx as nx
+from networkx.algorithms.shortest_paths import weighted
 
 class TRM:
     def euc_tri(self, worker, underflow, overflow, graph):
@@ -56,8 +57,11 @@ class TRM:
         nx.set_node_attributes(cgraph, {i: cwgraph.nodes[i] for i in cgraph.nodes}) 
 
         worker =list(set(cwgraph.nodes)-set(cgraph.nodes))
-        cgraph.add_edges_from([edge for edge in cwgraph.edges if cgraph.has_node(edge[0]) and cgraph.has_node(edge[1])])
+        for edge in cwgraph.edges:
+            if cgraph.has_node(edge[0]) and cgraph.has_node(edge[1]):
+                cgraph.add_edge(edge[0],edge[1],weight=self.euc_dis(cwgraph.nodes[edge[0]]['x'],cwgraph.nodes[edge[0]]['y'],cwgraph.nodes[edge[1]]['x'],cwgraph.nodes[edge[1]]['y']))
         #print('nodedata',cgraph.nodes[list(cgraph.nodes)[0]])
         #worker = [node for node in cwgraph.nodes if cwgraph.nodes[node]['type']=='worker']
         #print(len(worker))
+
         return self.solve(cgraph,cwgraph,worker)

@@ -201,5 +201,5 @@ class UGA_RSL(UGA):
     
     def test(self, cwgraph):
         self.meta_graph=cwgraph
-        return self.run( 0.1 , 100, 100) 
+        return self.run( 0.1 , 5, 5) 
 
