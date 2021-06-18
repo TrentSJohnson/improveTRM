@@ -18,7 +18,7 @@ class Local_Ratio:
     def local_ratio(self,F,w):
         F = [edge for edge in F if w[str(edge)] > 0]
         
-        print(len(F))
+        #print(len(F))
         if len(F) == 0:
             return F
         edge = F[0]
@@ -88,8 +88,8 @@ class Local_Ratio:
                 non_zero.remove(edge)
             f.append(edge)
         w_dict = {str(edge):x[edge].value() for edge in possible_edges}
-        print('starting ratio')
-        print(str(w_dict)[:300])
+        #print('starting ratio')
+        #print(str(w_dict)[:300])
 
         return f, self.total_cost(self.local_ratio(f,w_dict),cwgraph)
     

@@ -10,9 +10,10 @@ from hs import RSL
 class UGA:
     def __init__(self,meta_graph=None):
         self.meta_graph = meta_graph
-        self.overflow = [node for node in meta_graph.nodes() if meta_graph.nodes[node]['type'] == 'overflow']
-        self.worker = [node for node in meta_graph.nodes() if meta_graph.nodes[node]['type'] == 'worker']
-        self.underflow = [node for node in meta_graph.nodes() if meta_graph.nodes[node]['type'] == 'underflow']
+    def build_lists(self):
+        self.overflow = [node for node in self.meta_graph.nodes() if self.meta_graph.nodes[node]['type'] == 'overflow']
+        self.worker = [node for node in self.meta_graph.nodes() if self.meta_graph.nodes[node]['type'] == 'worker']
+        self.underflow = [node for node in self.meta_graph.nodes() if self.meta_graph.nodes[node]['type'] == 'underflow']
         
     def add_triplet(self, vertex, graph):
         neighbors = list(self.meta_graph.neighbors(vertex))
@@ -125,16 +126,17 @@ class UGA:
 
 
             
-    def run(self, sswap_rate, oswap_rate, gens, pop_size):
+    def run(self, sswap_rate, oswap_rate, gens, pop_size, update_flag=False):
         #make a population
+        self.build_lists()
         pop = [self.build_matching() for i in range(pop_size)]
         
         bests = []
-        for gen in tqdm(range(gens)):
+        for gen in range(gens):
             #get scores of species
             scores = np.array([self.euc_fitness(s) for s in pop])
             bests.append(max(scores))
-            if gen %50 ==0:
+            if gen %50 ==0 and update_flag:
                 print(min(scores),max(scores))
             scores = softmax(scores)  
             

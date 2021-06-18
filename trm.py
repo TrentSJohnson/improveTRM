@@ -35,14 +35,29 @@ class TRM:
         spwgraph =nx.Graph()
         for key in matching.keys():
             if cgraph.nodes[key]['type'] =='overflow':
+                #print('is overflow')
                 for w, worker_ in enumerate(worker):
                     spwgraph.add_edge((key+'|'+matching[key]),worker_,
-                                    weight=cgraph.edges[key, matching[key]]['weight']+
+                                    weight=self.euc_dis(cwgraph.nodes[key]['x'], cwgraph.nodes[key]['y'],
+                                     cgraph.nodes[matching[key]]['x'], cgraph.nodes[matching[key]]['y'])+
                                     self.euc_dis(cwgraph.nodes[worker_]['xs'], cwgraph.nodes[worker_]['ys'],
                                      cgraph.nodes[key]['x'], cgraph.nodes[key]['y']) +
                                     self.euc_dis(cwgraph.nodes[worker_]['xe'], cwgraph.nodes[worker_]['ye'], 
                                     cgraph.nodes[matching[key]]['x'], cgraph.nodes[matching[key]]['y'])
                                                 )
+        #print('spw',spwgraph.edges)
         matching2 = bipartite.matching.minimum_weight_full_matching(spwgraph)
         #print(matching2)
         return self.matching_score(matching2, cwgraph)
+
+    def test(self,cwgraph):
+        cgraph = nx.Graph()
+        cgraph.add_nodes_from([node for node in cwgraph.nodes if cwgraph.nodes[node]['type']!='worker'])
+        nx.set_node_attributes(cgraph, {i: cwgraph.nodes[i] for i in cgraph.nodes}) 
+
+        worker =list(set(cwgraph.nodes)-set(cgraph.nodes))
+        cgraph.add_edges_from([edge for edge in cwgraph.edges if cgraph.has_node(edge[0]) and cgraph.has_node(edge[1])])
+        #print('nodedata',cgraph.nodes[list(cgraph.nodes)[0]])
+        #worker = [node for node in cwgraph.nodes if cwgraph.nodes[node]['type']=='worker']
+        #print(len(worker))
+        return self.solve(cgraph,cwgraph,worker)

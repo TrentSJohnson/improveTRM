@@ -6,6 +6,12 @@ class LP:
     def edge_cost(self,edge, cwgraph):
         return self.euc_dis(cwgraph.nodes[edge[2]]['x'], cwgraph.nodes[edge[2]]['y'], cwgraph.nodes[edge[0]]['xe'], cwgraph.nodes[edge[0]]['ye']) + self.euc_dis(cwgraph.nodes[edge[1]]['x'], cwgraph.nodes[edge[1]]['y'], cwgraph.nodes[edge[2]]['x'], cwgraph.nodes[edge[2]]['y']) + self.euc_dis(cwgraph.nodes[edge[1]]['x'], cwgraph.nodes[edge[1]]['y'], cwgraph.nodes[edge[0]]['xs'], cwgraph.nodes[edge[0]]['ys'])
 
+    def build_lists(self,meta_graph):
+        overflow = [node for node in meta_graph.nodes() if meta_graph.nodes[node]['type'] == 'overflow']
+        worker = [node for node in meta_graph.nodes() if meta_graph.nodes[node]['type'] == 'worker']
+        underflow = [node for node in meta_graph.nodes() if meta_graph.nodes[node]['type'] == 'underflow']
+        return worker, overflow, underflow
+
     def total_cost(self,matching, cwgraph):
         return sum([self.edge_cost(edge,cwgraph) for edge in matching])
     
@@ -42,10 +48,11 @@ class LP:
                 "assignment_bound_%s" % str(vertex),
             )
         wap_model.solve()
-        print("Status:", pulp.LpStatus[wap_model.status])
+        #print("Status:", pulp.LpStatus[wap_model.status])
 
         matching = [edge for edge in possible_edges if x[edge].value() > 0]
         return matching, self.total_cost(matching,cwgraph)
 
     def test(self, graph):
-        return self.solve(graph)
+        worker,overflow,underflow = self.build_lists(graph)
+        return self.solve(graph,worker,overflow,underflow)

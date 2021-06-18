@@ -127,6 +127,8 @@ class HS:
         return best_matching, best_score
 
 
+
+
     
 class RSL:
     def make_graph(self, cwgraph):
@@ -158,6 +160,9 @@ class RSL:
             graph =self.make_graph(cwgraph)
         hs = HS()
         return hs.search(graph,cwgraph)
+
+    def test(self, cwgraph):
+        return self.optimize(cwgraph)
         
 
 
