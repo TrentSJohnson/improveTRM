@@ -92,3 +92,6 @@ class Local_Ratio:
         print(str(w_dict)[:300])
 
         return f, self.total_cost(self.local_ratio(f,w_dict),cwgraph)
+    
+    def test(self, graph):
+        return self.solve(graph)

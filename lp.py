@@ -46,3 +46,6 @@ class LP:
 
         matching = [edge for edge in possible_edges if x[edge].value() > 0]
         return matching, self.total_cost(matching,cwgraph)
+
+    def test(self, graph):
+        return self.solve(graph)

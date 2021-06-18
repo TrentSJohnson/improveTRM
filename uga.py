@@ -5,9 +5,10 @@ from scipy.special import softmax
 from tqdm import tqdm
 from random import shuffle
 import copy
+from hs import RSL
 
 class UGA:
-    def __init__(self,meta_graph):
+    def __init__(self,meta_graph=None):
         self.meta_graph = meta_graph
         self.overflow = [node for node in meta_graph.nodes() if meta_graph.nodes[node]['type'] == 'overflow']
         self.worker = [node for node in meta_graph.nodes() if meta_graph.nodes[node]['type'] == 'worker']
@@ -115,8 +116,6 @@ class UGA:
             for p in pots:
                 if len(list(spec.neighbors(p))) == 0:
                     spec.add_edge(unemployed,p)
-                    #print('added',unemployed,p)
-
                     return
             print('NoStationFound')
         else:
@@ -174,9 +173,31 @@ class UGA:
                                     
             pop = selected
             #print(distr)
-        return pop[np.argmax(scores)],np.max(scores), bests
+        return pop[np.argmax(scores)],np.max(bests), bests
                 
                 
+    def test(self,cwgraph):
+        self.meta_graph=cwgraph
+        return self.run( 0.1, 0.1, 100, 100) 
+
+class UGA_RSL(UGA):
+    def __init__(self,meta_graph=None):
+        super().__init__(meta_graph)
+        self.rsl = RSL()
+    def build_matching(self):
+        #print('g')
+        graph = self.rsl.optimize(self.meta_graph)[0]
+        graph.add_nodes_from([node for node in self.meta_graph.nodes if not graph.has_node(node)])
+        for v1 in graph.nodes():
+            for v2 in graph.nodes:
+                if graph.has_edge(v1,v2) and set([self.meta_graph.nodes[v1]['type'],self.meta_graph.nodes[v2]['type']]) == set(['overflow','underflow']):
+                    graph.remove_edge(v1,v2)
+        return graph
     
-                            
+    def run(self, oswap_rate, gens, pop_size):
+        return super().run(0,oswap_rate, gens, pop_size)
+    
+    def test(self, cwgraph):
+        self.meta_graph=cwgraph
+        return self.run( 0.1 , 100, 100) 
 

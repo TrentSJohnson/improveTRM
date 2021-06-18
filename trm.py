@@ -10,10 +10,9 @@ class TRM:
 
     def matching_score(self,matching,graph):
         triplets = []
-        finished = {}
         for u1 in matching.keys():
             temp = {}
-            if type(u1)==str:
+            if '|' in u1:
                 u2 = matching[u1]
                 u1,u3 = u1.split('|')
             else:
@@ -37,7 +36,7 @@ class TRM:
         for key in matching.keys():
             if cgraph.nodes[key]['type'] =='overflow':
                 for w, worker_ in enumerate(worker):
-                    spwgraph.add_edge((key+'|'+matching[key]),w,
+                    spwgraph.add_edge((key+'|'+matching[key]),worker_,
                                     weight=cgraph.edges[key, matching[key]]['weight']+
                                     self.euc_dis(cwgraph.nodes[worker_]['xs'], cwgraph.nodes[worker_]['ys'],
                                      cgraph.nodes[key]['x'], cgraph.nodes[key]['y']) +
