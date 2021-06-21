@@ -5,7 +5,7 @@ from scipy.special import softmax
 from tqdm import tqdm
 from random import shuffle
 import copy
-from hs import RSL
+from models.hs import RSL
 
 class UGA:
     def __init__(self,meta_graph=None):
