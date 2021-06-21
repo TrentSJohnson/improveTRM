@@ -5,7 +5,7 @@ from models.hs import RSL
 from models.local_ratio import Local_Ratio
 from models.trm import TRM
 from models.uga import UGA_RSL
-
+import numpy as np
 
 class Testing:
     def test(self, algorithms, data, interval, start_time_='started_at', epsilon=.1, radius=500):
@@ -17,7 +17,7 @@ class Testing:
         self.graphs = []
         self.times = []
         for i in tqdm(range(10)):
-            graph = build_cwgraph(data, start_time, start_time + td, radius=radius, epsilon=epsilon)
+            graph = build_cwgraph(data, start_time_, start_time_ + td, radius=radius, epsilon=epsilon)
             while len(graph.nodes) < 10:
                 start_time_ = data.starttime[np.random.choice(data.index)]
                 graph = build_cwgraph(data, start_time_, start_time + td)
@@ -25,7 +25,7 @@ class Testing:
             temp = []
             tempt = []
             for algo in algorithms:
-                print(algo)
+                print(str(algo))
                 start = datetime.now()
                 temp.append(algo.test(graph)[1])
                 tempt.append((datetime.now() - start).total_seconds())

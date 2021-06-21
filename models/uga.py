@@ -185,7 +185,7 @@ class UGA_RSL(UGA):
     def __init__(self, meta_graph=None):
         super().__init__(meta_graph)
         self.rsl = RSL()
-        self. hs = HS()
+        self.rhs = HS()
     def build_matching(self):
         # print('g')
         graph = self.rsl.optimize(self.meta_graph)[0]
