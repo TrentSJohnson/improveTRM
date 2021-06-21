@@ -136,8 +136,8 @@ class UGA:
             #get scores of species
             scores = np.array([self.euc_fitness(s) for s in pop])
             bests.append(max(scores))
-            if gen %50 ==0 and update_flag:
-                print(min(scores),max(scores))
+            #if gen %50 ==0 and update_flag:
+                #print(min(scores),max(scores))
             scores = softmax(scores)  
             
             selected = []
