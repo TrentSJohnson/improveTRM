@@ -4,7 +4,7 @@ from scipy.special import softmax
 from tqdm import tqdm
 from random import shuffle
 import copy
-from models.hs import RSL
+from models.hs import RSL, HS
 
 
 class UGA:
@@ -123,7 +123,7 @@ class UGA:
             spec.add_edge(worker, mate_station)
             # print('added',worker,mate_station)
 
-    def run(self, sswap_rate, oswap_rate, gens, pop_size, update_flag=False):
+    def run(self, sswap_rate, oswap_rate, gens, pop_size, spec_opt=None):
         # make a population
         self.build_lists()
         pop = [self.build_matching() for i in range(pop_size)]
@@ -172,7 +172,7 @@ class UGA:
 
                 selected.append(spec)
 
-            pop = selected
+            pop = [spec_opt(s) for s in selected]
             # print(distr)
         return pop[np.argmax(scores)], np.max(bests), bests
 
@@ -185,7 +185,7 @@ class UGA_RSL(UGA):
     def __init__(self, meta_graph=None):
         super().__init__(meta_graph)
         self.rsl = RSL()
-
+        self. hs = HS()
     def build_matching(self):
         # print('g')
         graph = self.rsl.optimize(self.meta_graph)[0]
@@ -198,8 +198,11 @@ class UGA_RSL(UGA):
                     graph.remove_edge(v1, v2)
         return graph
 
+    def opt_species(self,graph):
+        return self.hs.seach(graph,self.meta_graph)
+
     def run(self, oswap_rate, gens, pop_size):
-        return super().run(0, oswap_rate, gens, pop_size)
+        return super().run(0, oswap_rate, gens, pop_size,spec_opt=self.opt_species)
 
     def test(self, cwgraph):
         self.meta_graph = cwgraph
