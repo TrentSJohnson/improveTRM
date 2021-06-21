@@ -117,6 +117,8 @@ class HS:
         best_matching = None
         stalled_rounds = 0
         constrain_types = ['worker_overflow', 'overflow_underflow', 'underflow_worker']
+        i = 0
+        print('searching')
         while stalled_rounds < 3:
             shuffle(constrain_types)
             for constrain_type in constrain_types:
@@ -125,7 +127,8 @@ class HS:
                 matching = bipartite.matching.minimum_weight_full_matching(fixed)
                 graph = self.update_graph(matching)
             score = self.matching_score(graph, cwgraph)
-
+            i+=1
+            print(i)
             if score < best_score:
                 best_score = score
                 best_matching = graph
