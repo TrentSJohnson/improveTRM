@@ -185,7 +185,7 @@ class UGA_RSL(UGA):
     def __init__(self, meta_graph=None):
         super().__init__(meta_graph)
         self.rsl = RSL()
-        self.rhs = HS()
+        self.hs = HS()
     def build_matching(self):
         # print('g')
         graph = self.rsl.optimize(self.meta_graph)[0]
@@ -199,7 +199,7 @@ class UGA_RSL(UGA):
         return graph
 
     def opt_species(self,graph):
-        return self.hs.seach(graph,self.meta_graph)
+        return self.rsl.optimize(graph,self.meta_graph)
 
     def run(self, oswap_rate, gens, pop_size):
         return super().run(0, oswap_rate, gens, pop_size,spec_opt=self.opt_species)

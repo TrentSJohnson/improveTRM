@@ -10,17 +10,18 @@ import numpy as np
 class Testing:
     def test(self, algorithms, data, interval, start_time_='started_at', epsilon=.1, radius=500):
         self.scores = []
-        start_time_ = data[start_time][np.random.choice(data.index)]
+        start_time_dt = data[start_time_][np.random.choice(data.index)]
         td = timedelta(minutes=interval)
         # epochs = int((max(data.starttime)-start_time).total_seconds()/(60*15))
         self.runtimes = []
         self.graphs = []
         self.times = []
         for i in tqdm(range(10)):
-            graph = build_cwgraph(data, start_time_, start_time_ + td, radius=radius, epsilon=epsilon)
-            while len(graph.nodes) < 10:
-                start_time_ = data.starttime[np.random.choice(data.index)]
-                graph = build_cwgraph(data, start_time_, start_time + td)
+            graph = build_cwgraph(data, start_time_dt, start_time_dt + td, radius=radius, epsilon=epsilon)
+            while len(graph.nodes) < 4:
+                print('failed')
+                start_time_dt = data[start_time_][np.random.choice(data.index)]
+                graph = build_cwgraph(data, start_time_dt, start_time_dt + td, radius=radius, epsilon=epsilon)
 
             temp = []
             tempt = []
@@ -49,6 +50,7 @@ if __name__ == '__main__':
     data = pd.read_csv('data/202105-citibike-tripdata.csv')
     data = data.loc[[type(i) == str for i in data[start_station_name]]]
     data = data.loc[[type(i) == str for i in data[end_station_name]]]
+    data= data.loc[data.index[:10000]]
     data[start_time] = data[start_time].apply(lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))
     data[end_time] = data[end_time].apply(lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))
 
@@ -61,9 +63,7 @@ if __name__ == '__main__':
     # print('vertixxx',graph.nodes)
     #
 
-    filtered_data = data[(data[start_time] >= data.loc[0, start_time]) & (
-                data[start_time] <= data.loc[0, start_time] + timedelta(minutes=15))]
-
+    
     # cgraph = cloned_station_vertices(graph)
 
     cwgraph = build_cwgraph(data, data.loc[0, start_time], data.loc[0, start_time] + timedelta(minutes=15), 0.1, 500)
@@ -75,5 +75,5 @@ if __name__ == '__main__':
     print(len(list(cwgraph.edges)))
 
     testing = Testing()
-    scores = testing.test([UGA_RSL(), TRM(), RSL(), Local_Ratio()], data, 15, cwgraph)
+    scores = testing.test([UGA_RSL(), TRM(), RSL(), Local_Ratio()], data, 15)
     print(scores)
