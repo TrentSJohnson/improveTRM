@@ -1,11 +1,14 @@
 from datetime import timedelta, datetime
+
+import numpy as np
 from tqdm import tqdm
+
 from graphprocessing import *
 from models.hs import RSL
 from models.local_ratio import Local_Ratio
 from models.trm import TRM
 from models.uga import UGA_RSL
-import numpy as np
+
 
 class Testing:
     def test(self, algorithms, data, interval, start_time_='started_at', epsilon=1, radius=500):
@@ -22,7 +25,7 @@ class Testing:
                 print('failed')
                 start_time_dt = data[start_time_][np.random.choice(data.index)]
                 graph = build_cwgraph(data, start_time_dt, start_time_dt + td, radius=radius, epsilon=epsilon)
-
+            print('nodes:', len(graph.nodes))
             temp = []
             tempt = []
             for algo in algorithms:
@@ -38,7 +41,7 @@ class Testing:
             if i % 10 == 0:
                 print(temp)
                 print(tempt)
-        return self.scores, self.times
+        return self.scores, self.times, self.graphs
 
 
 if __name__ == '__main__':
@@ -50,10 +53,9 @@ if __name__ == '__main__':
     data = pd.read_csv('data/202105-citibike-tripdata.csv')
     data = data.loc[[type(i) == str for i in data[start_station_name]]]
     data = data.loc[[type(i) == str for i in data[end_station_name]]]
-    #data= data.loc[data.index[:10000]]
+    #data = data.loc[data.index[:10000]]
     data[start_time] = data[start_time].apply(lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))
     data[end_time] = data[end_time].apply(lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))
-
 
     # graph = build_station_graph(data,data.loc[0,start_time],data.loc[0,start_time]+timedelta(minutes=15))
     # print(graph['E 6 St & Avenue D'])
@@ -63,7 +65,6 @@ if __name__ == '__main__':
     # print('vertixxx',graph.nodes)
     #
 
-    
     # cgraph = cloned_station_vertices(graph)
 
     cwgraph = build_cwgraph(data, data.loc[0, start_time], data.loc[0, start_time] + timedelta(minutes=15), 1, 500)
@@ -75,11 +76,12 @@ if __name__ == '__main__':
     print(len(list(cwgraph.edges)))
 
     testing = Testing()
-    scores,times = testing.test([UGA_RSL(), TRM(), RSL(), Local_Ratio()], data, 15)
+    scores, times, graphs = testing.test([UGA_RSL(), TRM(), RSL(), Local_Ratio()], data, 15)
     scores_df = pd.DataFrame(np.abs(scores), columns=['UGA_RSL', 'TRM', 'RSL', 'Local_Ratio'])
     times_df = pd.DataFrame(np.abs(scores), columns=['UGA_RSL', 'TRM', 'RSL', 'Local_Ratio'])
-    scores_df.to_csv('scores.csv')
-    times_df.to_csv('times.csv')
+    scores_df.to_csv('outputs/scores.csv')
+    times_df.to_csv('outputs/times.csv')
+    for g, graph in enumerate(graphs):
+        nx.write_adjlist(graph, "outputs/test" + str(g) + ".adjlist")
     print(scores_df.head())
     print(times_df.head())
-
