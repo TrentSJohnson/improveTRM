@@ -1,6 +1,7 @@
-from networkx.algorithms import bipartite
-import networkx as nx
 from random import shuffle
+
+import networkx as nx
+from networkx.algorithms import bipartite
 
 
 class HS:
@@ -47,7 +48,7 @@ class HS:
             for underflow_ in underflow:
                 for overflow_ in overflow:
                     if graph.has_edge(underflow_, overflow_):
-                        fixed.add_node(str(underflow_) + '|' + str(overflow_), bipartite=0)
+                        fixed.add_node(underflow_ + '|' + overflow_, bipartite=0)
             for worker_ in worker:
                 fixed.add_node(str(worker_), bipartite=1)
         elif constrain_type == 'underflow_worker':
@@ -70,7 +71,7 @@ class HS:
         # print('edges out', len(fixed.edges))
         # draw_bipartite(fixed)
 
-        return fixed
+        return bipartite.matching.minimum_weight_full_matching(fixed)
 
     def update_graph(self, matching):
         g = nx.Graph()
@@ -100,14 +101,18 @@ class HS:
         finished = set()
         temp = {}
         for v in matching.nodes:
-            neighbors = list(matching.neighbors(v))
-            finished = finished.union({v}).union(set(neighbors))
+            if not(v in finished):
+                temp = {}
+                neighbors = list(matching.neighbors(v))
 
-            temp[graph.nodes[v]['type']] = v
-            temp[graph.nodes[neighbors[0]]['type']] = neighbors[0]
-            temp[graph.nodes[neighbors[1]]['type']] = neighbors[1]
-            triplets.append(temp)
+                finished = finished.union({v}).union(set(neighbors))
+
+                temp[graph.nodes[v]['type']] = v
+                temp[graph.nodes[neighbors[0]]['type']] = neighbors[0]
+                temp[graph.nodes[neighbors[1]]['type']] = neighbors[1]
+                triplets.append(temp)
         w = 0
+
         for i in triplets:
             w += self.euc_tri(i['worker'], i['underflow'], i['overflow'], graph)
         return w
@@ -118,17 +123,13 @@ class HS:
         stalled_rounds = 0
         constrain_types = ['worker_overflow', 'overflow_underflow', 'underflow_worker']
         i = 0
-        print('searching')
         while stalled_rounds < 3:
             shuffle(constrain_types)
             for constrain_type in constrain_types:
-                fixed = self.constrain_graph(graph, constrain_type, cwgraph)
-                # print(fixed.edges)
-                matching = bipartite.matching.minimum_weight_full_matching(fixed)
+                matching = self.constrain_graph(graph, constrain_type, cwgraph)
                 graph = self.update_graph(matching)
             score = self.matching_score(graph, cwgraph)
-            i+=1
-            print(i)
+            i += 1
             if score < best_score:
                 best_score = score
                 best_matching = graph
@@ -159,12 +160,10 @@ class RSL:
             graph.add_edge(w, u)
             graph.add_edge(u, o)
             graph.add_edge(w, o)
-        # print(graph.edges)
-        # print(len(graph.edges))
         return graph
 
     def optimize(self, cwgraph, graph=None):
-        if graph == None:
+        if graph is None:
             graph = self.make_graph(cwgraph)
         hs = HS()
         return hs.search(graph, cwgraph)

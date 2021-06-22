@@ -1,10 +1,15 @@
-import numpy as np
-import networkx as nx
-from scipy.special import softmax
-from tqdm import tqdm
-from random import shuffle
 import copy
+from random import shuffle
+
+import networkx as nx
+import numpy as np
+from scipy.special import softmax
+
 from models.hs import RSL, HS
+
+
+def euc_dis(x1, y1, x2, y2):
+    return ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** .5
 
 
 class UGA:
@@ -23,20 +28,17 @@ class UGA:
         overflow = None
         underflow = None
         for overflow_ in neighbors:
-            if (not overflow_ in list(graph.nodes())) and self.meta_graph.nodes[overflow_]['type'] == 'overflow':
+            if (not (overflow_ in list(graph.nodes()))) and self.meta_graph.nodes[overflow_]['type'] == 'overflow':
                 overflow = overflow_
         for underflow_ in neighbors:
-            if (not underflow_ in list(graph.nodes())) and self.meta_graph.nodes[underflow_]['type'] == 'underflow':
+            if (not (underflow_ in list(graph.nodes()))) and self.meta_graph.nodes[underflow_]['type'] == 'underflow':
                 underflow = underflow_
-        if overflow != None and underflow != None:
+        if overflow is not None and underflow is not None:
             graph.add_node(overflow)
             graph.add_node(underflow)
             graph.add_node(vertex)
             graph.add_edge(vertex, underflow)
             graph.add_edge(vertex, overflow)
-
-    def euc_dis(self, x1, y1, x2, y2):
-        return ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** .5
 
     # each species is a complete of worker station triples
     def build_matching(self):
@@ -80,20 +82,21 @@ class UGA:
                     return edge
 
     def euc_fitness_ind(self, gene, spec):
-        w = 0
-        neighbors = list(spec.neighbors(gene))
-        if len(neighbors) != 0:
-            for i in neighbors:
-                if self.meta_graph.nodes[i]['type'] == 'underflow':
-                    w += self.euc_dis(self.meta_graph.nodes[i]['x'], self.meta_graph.nodes[i]['y'],
-                                      self.meta_graph.nodes[gene]['xs'], self.meta_graph.nodes[gene]['ys'])
-                else:
-                    w += self.euc_dis(self.meta_graph.nodes[i]['x'], self.meta_graph.nodes[i]['y'],
-                                      self.meta_graph.nodes[gene]['xe'], self.meta_graph.nodes[gene]['ye'])
-            w += self.euc_dis(self.meta_graph.nodes[neighbors[0]]['x'], self.meta_graph.nodes[neighbors[0]]['y'],
-                              self.meta_graph.nodes[neighbors[1]]['x'], self.meta_graph.nodes[neighbors[1]]['y'])
 
-        return w
+        w = 0
+        temp = {}
+        neighbors = list(spec.neighbors(gene))
+        if len(neighbors) != 2:
+            return 0
+        temp[self.meta_graph.nodes[neighbors[0]]['type']] = self.meta_graph.nodes[neighbors[0]]
+        temp[self.meta_graph.nodes[neighbors[1]]['type']] = self.meta_graph.nodes[neighbors[1]]
+        underflow_data = temp['underflow']
+        overflow_data = temp['overflow']
+        worker_data = self.meta_graph.nodes[gene]
+        return euc_dis(worker_data['xe'], worker_data['ye'], underflow_data['x'],
+                       underflow_data['y']) + euc_dis(worker_data['xs'], worker_data['ys'],
+                                                      overflow_data['x'], overflow_data['y']) + euc_dis(
+            underflow_data['x'], underflow_data['y'], overflow_data['x'], overflow_data['y'])
 
     def euc_fitness(self, spec):
         return -sum([self.euc_fitness_ind(gene, spec) for gene in spec.nodes if
@@ -105,12 +108,7 @@ class UGA:
         spec.remove_edge(worker, station)
         if len(list(spec.neighbors(mate_station))) > 0:
             unemployed = list(spec.neighbors(mate_station))[0]
-            # print('mate_neighbors:', list(spec.neighbors(mate_station)))
-            # print('worker:', worker)
-            # print('unemplowed:',unemployed)
             spec.remove_edge(unemployed, mate_station)
-            # print('removed',unemployed,mate_station)
-            # print('added',worker,mate_station)
             spec.add_edge(worker, mate_station)
             pots = self.overflow if self.meta_graph.nodes[station]['type'] == 'overflow' else self.underflow
             shuffle(pots)
@@ -127,14 +125,15 @@ class UGA:
         # make a population
         self.build_lists()
         pop = [self.build_matching() for i in range(pop_size)]
-
+        scores = []
         bests = []
         for gen in range(gens):
             # get scores of species
-            scores = np.array([self.euc_fitness(s) for s in pop])
+            scores = [self.euc_fitness(s) for s in pop]
             bests.append(max(scores))
             # if gen %50 ==0 and update_flag:
             # print(min(scores),max(scores))
+            print(scores)
             scores = softmax(scores)
 
             selected = []
@@ -167,13 +166,12 @@ class UGA:
                         mate_stations_ = list(pop[np.random.choice(list(range(len(pop))), p=scores)].neighbors(worker_))
                         mate_station_ = mate_stations_[0] if self.meta_graph.nodes[mate_stations_[0]]['type'] == \
                                                              self.meta_graph.nodes[station_]['type'] else \
-                        mate_stations_[1]
+                            mate_stations_[1]
                         self.swap(worker_, station_, mate_station_, spec)
 
                 selected.append(spec)
 
             pop = [spec_opt(s) for s in selected]
-            # print(distr)
         return pop[np.argmax(scores)], np.max(bests), bests
 
     def test(self, cwgraph):
@@ -186,24 +184,32 @@ class UGA_RSL(UGA):
         super().__init__(meta_graph)
         self.rsl = RSL()
         self.hs = HS()
+
     def build_matching(self):
-        # print('g')
-        graph = self.rsl.optimize(self.meta_graph)[0]
-        graph.add_nodes_from([node for node in self.meta_graph.nodes if not graph.has_node(node)])
+        graph, score = self.rsl.optimize(self.meta_graph)
+
         for v1 in graph.nodes():
             for v2 in graph.nodes:
-                if graph.has_edge(v1, v2) and set(
-                        [self.meta_graph.nodes[v1]['type'], self.meta_graph.nodes[v2]['type']]) == set(
-                        ['overflow', 'underflow']):
+                if graph.has_edge(v1, v2) and {self.meta_graph.nodes[v1]['type'],
+                                               self.meta_graph.nodes[v2]['type']} == {'overflow', 'underflow'}:
                     graph.remove_edge(v1, v2)
+        graph.add_nodes_from([node for node in self.meta_graph.nodes if not graph.has_node(node)])
+        print('RSL:', score, 'UGA:', self.euc_fitness(graph))
         return graph
 
-    def opt_species(self,graph):
-        return self.rsl.optimize(graph,self.meta_graph)
+    def opt_species(self, graph):
+        graph2 = copy.deepcopy(graph)
+        station_pairings = [(n1, n2) for n1 in graph.nodes for n2 in graph.nodes if
+                            self.meta_graph.nodes[n1]['type'] == 'overflow' and self.meta_graph.nodes[n2][
+                                'type'] == 'underflow']
+        graph2.add_edges_from(station_pairings)
+        graph3 = self.rsl.optimize(self.meta_graph, graph2)[0]
+        graph3.remove_edges_from(station_pairings)
+        return graph3
 
-    def run(self, oswap_rate, gens, pop_size):
-        return super().run(0, oswap_rate, gens, pop_size,spec_opt=self.opt_species)
+    def run_(self, oswap_rate, gens, pop_size):
+        return super().run(0, oswap_rate, gens, pop_size, spec_opt=self.opt_species)
 
     def test(self, cwgraph):
         self.meta_graph = cwgraph
-        return self.run(0.1, 5, 5)
+        return self.run_(0.1, 5, 5)

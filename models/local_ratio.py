@@ -67,7 +67,7 @@ class Local_Ratio:
         x = pulp.LpVariable.dicts(
             "edge_fractions", possible_edges, lowBound=0
         )
-        lc = 1000
+        lc = 10000000
         # create objective function
         wap_model += pulp.lpSum([x[edge] * (lc - self.edge_cost(edge, cwgraph)) for edge in possible_edges])
 

@@ -1,6 +1,5 @@
-from networkx.algorithms import bipartite
 import networkx as nx
-from networkx.algorithms.shortest_paths import weighted
+from networkx.algorithms import bipartite
 
 
 class TRM:
@@ -15,6 +14,7 @@ class TRM:
 
     def matching_score(self, matching, graph):
         triplets = []
+        finished = []
         for u1 in matching.keys():
             temp = {}
             if '|' in u1:
@@ -23,10 +23,12 @@ class TRM:
             else:
                 u2 = matching[u1]
                 u2, u3 = u2.split('|')
-            temp[graph.nodes[u1]['type']] = u1
-            temp[graph.nodes[u2]['type']] = u2
-            temp[graph.nodes[u3]['type']] = u3
-            triplets.append(temp)
+            if not (u1 in finished):
+                temp[graph.nodes[u1]['type']] = u1
+                temp[graph.nodes[u2]['type']] = u2
+                temp[graph.nodes[u3]['type']] = u3
+                triplets.append(temp)
+                finished += [u1, u2, u3]
         w = 0
         for i in triplets:
             w += self.euc_tri(i['worker'], i['underflow'], i['overflow'], graph)

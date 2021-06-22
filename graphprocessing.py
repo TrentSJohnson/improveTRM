@@ -39,8 +39,10 @@ def build_station_graph(data, starttime, stoptime):
     for loc in locations:
         if vertices[loc]['change'] > 0:
             vertices[loc]['type'] = 'overflow'
-        if vertices[loc]['change'] < 0:
+        elif vertices[loc]['change'] < 0:
             vertices[loc]['type'] = 'underflow'
+        else:
+            vertices[loc]['type'] = ''
     vertices = vertices.loc[[x['type'] != '' for x in vertices]]
     for vertex in vertices.index:
         graphx.add_node(vertex, bipartite=int(vertices[vertex]['type'] == 'overflow'))
@@ -81,7 +83,7 @@ def build_cwgraph(data, starttime, stoptime, epsilon, radius):
             xe, ye, _, __ = utm.from_latlon(filtered_data.loc[i, 'end_lat'], filtered_data.loc[i, 'end_lng'])
 
         workers.append({'type': 'worker', 'change': 0, 'xs': xs + radius * (1 - 2 * np.random.random()),
-                        'ys': +500 * (1 - 2 * np.random.random()), 'xe': xe + radius * (1 - 2 * np.random.random()),
+                        'ys': ys+500 * (1 - 2 * np.random.random()), 'xe': xe + radius * (1 - 2 * np.random.random()),
                         'ye': ye + 500 * (1 - 2 * np.random.random())})
     cwgraph = copy.deepcopy(cgraph)
     # print(cwgraph.nodes)
