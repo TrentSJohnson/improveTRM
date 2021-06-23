@@ -31,10 +31,6 @@ class Testing:
             temp.append(score)
             tempt.append((datetime.now() - start).total_seconds())
             print(score)
-        self.scores.append(temp)
-        self.runtimes.append(tempt)
-        self.graphs.append(graph)
-        self.times.append(start_time_dt)
         return (temp,tempt,graph,start_time_dt)
 
     def test(self, algorithms, data, interval, start_time_='started_at', epsilon=1, radius=500):
@@ -43,13 +39,13 @@ class Testing:
         self.runtimes = []
         self.graphs = []
         self.times = []
-        with Pool() as pool:
-            print('threading')
-            data = pool.starmap(self.test_, [(algorithms, data, interval, start_time_, epsilon, radius) for i in range(5)])
-        scores = [data[i][0] for i in range(len(data))]
-        runtimes = [data[i][1] for i in range(len(data))]
-        graphs = [data[i][2] for i in range(len(data))]
-        times = [data[i][3] for i in range(len(data))]
+        results = []
+        for i in range(1):
+            results.append(self.test_(algorithms, data, interval, start_time_, epsilon, radius) )
+        scores = [results[i][0] for i in range(len(results))]
+        runtimes = [results[i][1] for i in range(len(results))]
+        graphs = [results[i][2] for i in range(len(results))]
+        times = [results[i][3] for i in range(len(results))]
 
         return scores, runtimes, times, graphs
 
@@ -86,7 +82,7 @@ if __name__ == '__main__':
     print(len(list(cwgraph.edges)))
 
     testing = Testing()
-    scores, runtimes, times, graphs = testing.test([UGA(), Local_Ratio(), TRM(), RSL(), UGA_RSL()], data, 10)
+    scores, runtimes, times, graphs = testing.test([UGA(), Local_Ratio(), TRM(), RSL(), UGA_RSL()], data, 5)
 
     scores_df = pd.DataFrame(np.abs(scores), columns=['UGA', 'Local_Ratio', 'TRM', 'RSL', 'UGA_RSL'])
     runtimes_df = pd.DataFrame(np.abs(runtimes), columns=['UGA', 'Local_Ratio', 'TRM', 'RSL', 'UGA_RSL'])
