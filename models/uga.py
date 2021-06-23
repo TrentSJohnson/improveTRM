@@ -124,15 +124,13 @@ class UGA:
     def run(self, sswap_rate, oswap_rate, gens, pop_size, spec_opt=None):
         # make a population
         self.build_lists()
-        with Pool() as pool:
-            pop = pool.map(self.build_matching, range(pop_size))
+        pop = [self.build_matching() for i in range(pop_size)]
 
         scores = []
         bests = []
         for gen in range(gens):
             # get scores of species
-            with Pool() as pool:
-                scores = pool.map(self.euc_fitness, pop)
+            scores = [self.euc_fitness(p) for p in pop]
                 
             #scores = [self.euc_fitness(s) for s in pop]
             bests.append(max(scores))
@@ -177,8 +175,7 @@ class UGA:
                 selected.append(spec)
             pop=selected
             if not (spec_opt is None):
-                with Pool() as pool:
-                    pop = pool.map(spec_opt, selected)
+                pop = [spec_opt(s) for s in selected]
             #pop = [spec_opt(s) for s in selected]
         return pop[np.argmax(scores)], np.max(bests), bests
 

@@ -1,4 +1,5 @@
 from datetime import timedelta, datetime
+from multiprocessing import Pool
 
 import numpy as np
 from tqdm import tqdm
@@ -11,38 +12,42 @@ from models.uga import UGA_RSL, UGA
 
 
 class Testing:
-    def test(self, algorithms, data, interval, start_time_='started_at', epsilon=1, radius=500):
-        self.scores = []
+    def test_(self, algorithms, data, interval, start_time_, epsilon, radius):
+        print('started thread')
         start_time_dt = data[start_time_][np.random.choice(data.index)]
         td = timedelta(minutes=interval)
+        graph = build_cwgraph(data, start_time_dt, start_time_dt + td, radius=radius, epsilon=epsilon)
+        while len(graph.nodes) < 4:
+            print('failed')
+            start_time_dt = data[start_time_][np.random.choice(data.index)]
+            graph = build_cwgraph(data, start_time_dt, start_time_dt + td, radius=radius, epsilon=epsilon)
+        print('nodes:', len(graph.nodes))
+        temp = []
+        tempt = []
+        for algo in algorithms:
+            print(str(algo))
+            start = datetime.now()
+            score = algo.test(graph)[1]
+            temp.append(score)
+            tempt.append((datetime.now() - start).total_seconds())
+            print(score)
+        self.scores.append(temp)
+        self.runtimes.append(tempt)
+        start_time_ = data[start_time][np.random.choice(data.index)]
+        self.graphs.append(graph)
+        self.times.append(start_time)
+
+    def test(self, algorithms, data, interval, start_time_='started_at', epsilon=1, radius=500):
+        self.scores = []
         # epochs = int((max(data.starttime)-start_time).total_seconds()/(60*15))
         self.runtimes = []
         self.graphs = []
         self.times = []
-        for i in tqdm(range(5)):
-            graph = build_cwgraph(data, start_time_dt, start_time_dt + td, radius=radius, epsilon=epsilon)
-            while len(graph.nodes) < 4:
-                print('failed')
-                start_time_dt = data[start_time_][np.random.choice(data.index)]
-                graph = build_cwgraph(data, start_time_dt, start_time_dt + td, radius=radius, epsilon=epsilon)
-            print('nodes:', len(graph.nodes))
-            temp = []
-            tempt = []
-            for algo in algorithms:
-                print(str(algo))
-                start = datetime.now()
-                score = algo.test(graph)[1]
-                temp.append(score)
-                tempt.append((datetime.now() - start).total_seconds())
-                print(score)
-            self.scores.append(temp)
-            self.runtimes.append(tempt)
-            start_time_ = data[start_time][np.random.choice(data.index)]
-            self.graphs.append(graph)
-            self.times.append(start_time)
-            if i % 10 == 0:
-                print(temp)
-                print(tempt)
+        with Pool() as pool:
+            print('threading')
+            pool.starmap(self.test_, [(algorithms, data, interval, start_time_, epsilon, radius) for i in range(5)])
+
+
         return self.scores, self.times, self.graphs
 
 
