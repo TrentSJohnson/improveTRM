@@ -41,7 +41,7 @@ class UGA:
             graph.add_edge(vertex, overflow)
 
     # each species is a complete of worker station triples
-    def build_matching(self,i=None):
+    def build_matching(self):
         graph = nx.Graph()
 
         shuffle(self.worker)
@@ -190,7 +190,7 @@ class UGA_RSL(UGA):
         self.rsl = RSL()
         self.hs = HS()
 
-    def build_matching(self, i):
+    def build_matching(self):
         graph, score = self.rsl.optimize(self.meta_graph)
 
         for v1 in graph.nodes():
