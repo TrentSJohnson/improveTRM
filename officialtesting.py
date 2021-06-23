@@ -33,9 +33,9 @@ class Testing:
             print(score)
         self.scores.append(temp)
         self.runtimes.append(tempt)
-        start_time_ = data[start_time][np.random.choice(data.index)]
         self.graphs.append(graph)
-        self.times.append(start_time)
+        self.times.append(start_time_dt)
+        return (temp,tempt,graph,start_time_dt)
 
     def test(self, algorithms, data, interval, start_time_='started_at', epsilon=1, radius=500):
         self.scores = []
@@ -45,10 +45,13 @@ class Testing:
         self.times = []
         with Pool() as pool:
             print('threading')
-            pool.starmap(self.test_, [(algorithms, data, interval, start_time_, epsilon, radius) for i in range(5)])
+            data = pool.starmap(self.test_, [(algorithms, data, interval, start_time_, epsilon, radius) for i in range(5)])
+        scores = [data[i][0] for i in range(len(data))]
+        runtimes = [data[i][1] for i in range(len(data))]
+        graphs = [data[i][2] for i in range(len(data))]
+        times = [data[i][3] for i in range(len(data))]
 
-
-        return self.scores, self.times, self.graphs
+        return scores, runtimes, times, graphs
 
 
 if __name__ == '__main__':
@@ -83,13 +86,17 @@ if __name__ == '__main__':
     print(len(list(cwgraph.edges)))
 
     testing = Testing()
-    scores, times, graphs = testing.test([UGA(), Local_Ratio(), TRM(), RSL(), UGA_RSL()], data, 1)
+    scores, runtimes, times, graphs = testing.test([UGA(), Local_Ratio(), TRM(), RSL(), UGA_RSL()], data, 10)
 
     scores_df = pd.DataFrame(np.abs(scores), columns=['UGA', 'Local_Ratio', 'TRM', 'RSL', 'UGA_RSL'])
-    times_df = pd.DataFrame(np.abs(scores), columns=['UGA', 'Local_Ratio', 'TRM', 'RSL', 'UGA_RSL'])
+    runtimes_df = pd.DataFrame(np.abs(runtimes), columns=['UGA', 'Local_Ratio', 'TRM', 'RSL', 'UGA_RSL'])
     scores_df.to_csv('outputs/scores.csv')
+    runtimes_df.to_csv('outputs/times.csv')
+    times_df = pd.DataFrame(times)
+    graphs_df = pd.DataFrame(graphs)
     times_df.to_csv('outputs/times.csv')
+    graphs_df.to_csv('outputs/graphs.csv')
     for g, graph in enumerate(graphs):
         nx.write_adjlist(graph, "outputs/test" + str(g) + ".adjlist")
     print(scores_df.head())
-    print(times_df.head())
+    print(runtimes_df.head())

@@ -136,7 +136,7 @@ class UGA:
             bests.append(max(scores))
             # if gen %50 ==0 and update_flag:
             # print(min(scores),max(scores))
-            print(scores)
+            #print(scores)
             scores = softmax(scores)
 
             selected = []
@@ -199,7 +199,7 @@ class UGA_RSL(UGA):
                                                self.meta_graph.nodes[v2]['type']} == {'overflow', 'underflow'}:
                     graph.remove_edge(v1, v2)
         graph.add_nodes_from([node for node in self.meta_graph.nodes if not graph.has_node(node)])
-        print('RSL:', score, 'UGA:', self.euc_fitness(graph))
+        #print('RSL:', score, 'UGA:', self.euc_fitness(graph))
         return graph
 
     def opt_species(self, graph):
