@@ -1,5 +1,5 @@
 from random import shuffle
-
+from tqdm import tqdm
 import networkx as nx
 from networkx.algorithms import bipartite
 
@@ -81,7 +81,6 @@ class HS:
                 vertices += v2.split('|') if '|' in v2 else [v2]
                 g.add_nodes_from(vertices)
                 g.add_edges_from([(v1_, v2_) for v1_ in vertices for v2_ in vertices if v1_ != v2_])
-        # rint('edges',g.edges)
         return g
 
     def euc_dis(self, x1, y1, x2, y2):
@@ -123,13 +122,14 @@ class HS:
         stalled_rounds = 0
         constrain_types = ['worker_overflow', 'overflow_underflow', 'underflow_worker']
         i = 0
-        while stalled_rounds < 3:
+        while stalled_rounds < 1:
             shuffle(constrain_types)
             for constrain_type in constrain_types:
                 matching = self.constrain_graph(graph, constrain_type, cwgraph)
                 graph = self.update_graph(matching)
             score = self.matching_score(graph, cwgraph)
             i += 1
+            #print(i)
             if score < best_score:
                 best_score = score
                 best_matching = graph
@@ -141,6 +141,7 @@ class HS:
 
 class RSL:
     def make_graph(self, cwgraph):
+        print('making graph')
         overflow = [node for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'overflow']
         underflow = [node for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'underflow']
         worker = [str(node) for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'worker']
@@ -166,6 +167,7 @@ class RSL:
         if graph is None:
             graph = self.make_graph(cwgraph)
         hs = HS()
+        print('optimizing')
         return hs.search(graph, cwgraph)
 
     def test(self, cwgraph):

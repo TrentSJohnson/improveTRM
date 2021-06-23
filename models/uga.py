@@ -4,7 +4,7 @@ from random import shuffle
 import networkx as nx
 import numpy as np
 from scipy.special import softmax
-
+from multiprocessing import Pool
 from models.hs import RSL, HS
 
 
@@ -41,7 +41,7 @@ class UGA:
             graph.add_edge(vertex, overflow)
 
     # each species is a complete of worker station triples
-    def build_matching(self):
+    def build_matching(self,i=None):
         graph = nx.Graph()
 
         shuffle(self.worker)
@@ -124,12 +124,17 @@ class UGA:
     def run(self, sswap_rate, oswap_rate, gens, pop_size, spec_opt=None):
         # make a population
         self.build_lists()
-        pop = [self.build_matching() for i in range(pop_size)]
+        with Pool() as pool:
+            pop = pool.map(self.build_matching, range(pop_size))
+
         scores = []
         bests = []
         for gen in range(gens):
             # get scores of species
-            scores = [self.euc_fitness(s) for s in pop]
+            with Pool() as pool:
+                scores = pool.map(self.euc_fitness, pop)
+                
+            #scores = [self.euc_fitness(s) for s in pop]
             bests.append(max(scores))
             # if gen %50 ==0 and update_flag:
             # print(min(scores),max(scores))
@@ -170,13 +175,16 @@ class UGA:
                         self.swap(worker_, station_, mate_station_, spec)
 
                 selected.append(spec)
-
-            pop = [spec_opt(s) for s in selected]
+            pop=selected
+            if not (spec_opt is None):
+                with Pool() as pool:
+                    pop = pool.map(spec_opt, selected)
+            #pop = [spec_opt(s) for s in selected]
         return pop[np.argmax(scores)], np.max(bests), bests
 
     def test(self, cwgraph):
         self.meta_graph = cwgraph
-        return self.run(0.1, 0.1, 100, 100)
+        return self.run(0.1, 0.1, 30, 20)
 
 
 class UGA_RSL(UGA):
@@ -185,7 +193,7 @@ class UGA_RSL(UGA):
         self.rsl = RSL()
         self.hs = HS()
 
-    def build_matching(self):
+    def build_matching(self, i):
         graph, score = self.rsl.optimize(self.meta_graph)
 
         for v1 in graph.nodes():
@@ -212,4 +220,4 @@ class UGA_RSL(UGA):
 
     def test(self, cwgraph):
         self.meta_graph = cwgraph
-        return self.run_(0.1, 5, 5)
+        return self.run_(0.1, 5, 2)
