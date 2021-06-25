@@ -175,9 +175,10 @@ class UGA:
                         self.swap(worker_, station_, mate_station_, spec)
 
                 selected.append(spec)
-            pop=selected
+            if gen != gens-1:
+                pop=selected
             if not (spec_opt is None):
-                pop = [spec_opt(s) for s in selected]
+                pop = [spec_opt(s) for s in pop]
             #pop = [spec_opt(s) for s in selected]
         return pop[np.argmax(scores)], np.max(bests), bests
 

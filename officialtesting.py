@@ -85,8 +85,8 @@ if __name__ == '__main__':
     testing = Testing()
     scores, runtimes, times, graphs, sdists = testing.test([UGA(),UGA_RSL(), RSL1(),Local_Ratio(), TRM(), RSL()], data, interval=2, epsilon=0.2, trials=30)
 
-    scores_df = pd.DataFrame(np.abs(scores), columns=['UGA', 'Local_Ratio', 'TRM', 'RSL', 'UGA_RSL'])
-    runtimes_df = pd.DataFrame(np.abs(runtimes), columns=['UGA', 'Local_Ratio', 'TRM', 'RSL', 'UGA_RSL'])
+    scores_df = pd.DataFrame(np.abs(scores), columns=['UGA','UGA_RSL', 'RSL1','Local_Ratio', 'TRM', 'RSL'])
+    runtimes_df = pd.DataFrame(np.abs(runtimes), columns=['UGA','UGA_RSL', 'RSL1','Local_Ratio', 'TRM', 'RSL'])
     scores_df.to_csv('outputs/scores.csv')
     runtimes_df.to_csv('outputs/runtimes.csv')
     times_df = pd.DataFrame(times)
