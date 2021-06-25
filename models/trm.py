@@ -1,3 +1,5 @@
+import itertools
+
 import networkx as nx
 from networkx.algorithms import bipartite
 
@@ -12,7 +14,7 @@ class TRM:
                                                                 overflow_data['x'], overflow_data['y']) + self.euc_dis(
             underflow_data['x'], underflow_data['y'], overflow_data['x'], overflow_data['y'])
 
-    def matching_score(self, matching, graph):
+    def matching_to_triplets(self, matching, graph):
         triplets = []
         finished = []
         for u1 in matching.keys():
@@ -29,13 +31,25 @@ class TRM:
                 temp[graph.nodes[u3]['type']] = u3
                 triplets.append(temp)
                 finished += [u1, u2, u3]
+        return triplets
+
+    def matching_score(self, matching, graph):
+        triplets = self.matching_to_triplets(matching, graph)
         w = 0
         for i in triplets:
             w += self.euc_tri(i['worker'], i['underflow'], i['overflow'], graph)
-        return triplets, w
+        return w
 
     def euc_dis(self, x1, y1, x2, y2):
         return ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** .5
+
+    def matching_to_graph(self, matching, graph):
+        new_graph = nx.Graph()
+        for triplet in self.matching_to_triplets(matching, graph):
+            v = triplet.values()
+            new_graph.add_nodes_from(v)
+            new_graph.add_edges_from([(v1,v2) for v1 in v for v2 in v if v1!=v2])
+        return graph
 
     def solve(self, cgraph, cwgraph, worker):
         matching = bipartite.matching.minimum_weight_full_matching(cgraph)
@@ -57,7 +71,7 @@ class TRM:
         # print('spw',spwgraph.edges)
         matching2 = bipartite.matching.minimum_weight_full_matching(spwgraph)
         # print(matching2)
-        return self.matching_score(matching2, cwgraph)
+        return self.matching_to_graph(matching2, cwgraph), self.matching_score(matching2, cwgraph)
 
     def test(self, cwgraph):
         cgraph = nx.Graph()

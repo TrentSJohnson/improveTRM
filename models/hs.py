@@ -3,6 +3,8 @@ from tqdm import tqdm
 import networkx as nx
 from networkx.algorithms import bipartite
 
+from models.trm import TRM
+
 
 class HS:
     def get_weight(self, graph, node1, node2, constrain_type, cwgraph):
@@ -75,7 +77,8 @@ class HS:
 
     def update_graph(self, matching):
         g = nx.Graph()
-        for v1, v2 in zip(matching.keys(), matching.values()):
+        for v1 in matching.keys():
+            v2 = matching[v1]
             if not g.has_edge(v1, v2):
                 vertices = v1.split('|') if '|' in v1 else [v1]
                 vertices += v2.split('|') if '|' in v2 else [v2]
@@ -141,7 +144,6 @@ class HS:
 
 class RSL:
     def make_graph(self, cwgraph):
-        print('making graph')
         overflow = [node for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'overflow']
         underflow = [node for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'underflow']
         worker = [str(node) for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'worker']
@@ -167,8 +169,13 @@ class RSL:
         if graph is None:
             graph = self.make_graph(cwgraph)
         hs = HS()
-        print('optimizing')
         return hs.search(graph, cwgraph)
 
     def test(self, cwgraph):
         return self.optimize(cwgraph)
+
+
+class TRM_RSL:
+    def make_graph(self, cwgraph):
+        trm = TRM()
+        return trm.test(cwgraph)[0]

@@ -1,10 +1,12 @@
 import copy
 from random import shuffle
-
 import networkx as nx
 import numpy as np
 from scipy.special import softmax
 from multiprocessing import Pool
+
+from tqdm import tqdm
+
 from models.hs import RSL, HS
 
 
@@ -143,7 +145,7 @@ class UGA:
             i = 0
             distr = []
             # while selecting pick a species
-            while len(selected) < len(pop):
+            while len(selected) < len(pop) and gen != gens-1:
                 spec_ind = np.random.choice(list(range(len(pop))), p=scores)
                 # spec = pop[i]
 
@@ -181,7 +183,26 @@ class UGA:
 
     def test(self, cwgraph):
         self.meta_graph = cwgraph
-        return self.run(0.1, 0.1, 30, 20)
+        return self.run(0, 0.0002, 4, 12)
+
+    def find_optimal(self, cwgraph):
+        self.meta_graph = cwgraph
+        best_param = None
+        best_score = float('-inf')
+        oswaps = 10**np.arange(-10, 0, 0.1)
+        sswaps = 10**np.arange(-10, 0, 0.1)
+        iters = 50
+        gens = np.arange(1, iters, 1)
+        for i in tqdm(range(100)):
+            o = np.random.choice(oswaps)
+            s = np.random.choice(sswaps)
+            g = np.random.choice(gens)
+            score = self.run(s, o, g, int(iters/g))[1]
+            if score > best_score:
+                best_param = (s, o, g)
+                best_score = score
+        return best_param
+
 
 
 class UGA_RSL(UGA):
@@ -193,13 +214,12 @@ class UGA_RSL(UGA):
     def build_matching(self):
         graph, score = self.rsl.optimize(self.meta_graph)
 
-        for v1 in graph.nodes():
+        for v1 in graph.nodes:
             for v2 in graph.nodes:
                 if graph.has_edge(v1, v2) and {self.meta_graph.nodes[v1]['type'],
                                                self.meta_graph.nodes[v2]['type']} == {'overflow', 'underflow'}:
                     graph.remove_edge(v1, v2)
         graph.add_nodes_from([node for node in self.meta_graph.nodes if not graph.has_node(node)])
-        #print('RSL:', score, 'UGA:', self.euc_fitness(graph))
         return graph
 
     def opt_species(self, graph):
@@ -210,11 +230,33 @@ class UGA_RSL(UGA):
         graph2.add_edges_from(station_pairings)
         graph3 = self.rsl.optimize(self.meta_graph, graph2)[0]
         graph3.remove_edges_from(station_pairings)
+        graph3.add_nodes_from([node for node in self.meta_graph.nodes if not graph3.has_node(node)])
+
         return graph3
 
     def run_(self, oswap_rate, gens, pop_size):
         return super().run(0, oswap_rate, gens, pop_size, spec_opt=self.opt_species)
 
-    def test(self, cwgraph):
+    def find_optimal(self, cwgraph):
         self.meta_graph = cwgraph
-        return self.run_(0.1, 5, 2)
+        best_param = None
+        best_score = float('-inf')
+        oswaps = 10**np.arange(-10, 0, 0.1)
+        gens = np.arange(1, 25, 1)
+        for i in range(10):
+            s = np.random.choice(oswaps)
+            g = np.random.choice(gens)
+            score = self.run_(s,g,int(25/g))[1]
+            if score > best_score:
+                best_param = (s,g)
+                best_score = score
+        return best_param
+
+    def test(self, cwgraph, gens=5, pop_size=5):
+        self.meta_graph = cwgraph
+        return self.run_(0.002, gens=gens, pop_size=pop_size)
+
+class RSL1(UGA_RSL):
+    def test(self, cwgraph, pop_size=5, gens=None):
+        self.meta_graph = cwgraph
+        return self.run_(0, gens=1, pop_size=5)

@@ -8,7 +8,7 @@ from graphprocessing import *
 from models.hs import RSL
 from models.local_ratio import Local_Ratio
 from models.trm import TRM
-from models.uga import UGA_RSL, UGA
+from models.uga import UGA_RSL, UGA, RSL1
 
 
 class Testing:
@@ -31,23 +31,23 @@ class Testing:
             temp.append(score)
             tempt.append((datetime.now() - start).total_seconds())
             print(score)
-        return (temp,tempt,graph,start_time_dt)
+        return (temp,tempt,len(list(graph.nodes)),start_time_dt,get_shortest_assignment(graph))
 
-    def test(self, algorithms, data, interval, start_time_='started_at', epsilon=1, radius=500):
+    def test(self, algorithms, data, interval, start_time_='started_at', epsilon=1.0, radius=500, trials=10):
         self.scores = []
         # epochs = int((max(data.starttime)-start_time).total_seconds()/(60*15))
         self.runtimes = []
         self.graphs = []
         self.times = []
         results = []
-        for i in range(1):
+        for i in range(trials):
             results.append(self.test_(algorithms, data, interval, start_time_, epsilon, radius) )
         scores = [results[i][0] for i in range(len(results))]
         runtimes = [results[i][1] for i in range(len(results))]
-        graphs = [results[i][2] for i in range(len(results))]
+        graph_sizes = [results[i][2] for i in range(len(results))]
         times = [results[i][3] for i in range(len(results))]
-
-        return scores, runtimes, times, graphs
+        sdists = [results[i][4] for i in range(len(results))]
+        return scores, runtimes, times, graph_sizes, sdists
 
 
 if __name__ == '__main__':
@@ -77,22 +77,30 @@ if __name__ == '__main__':
     # print(cwgraph.nodes)
     # verflow = {node:{} for node in graph.nodes() if cwgraph.nodes[node]['type']=='overflow'}
     # underflow = {node:{} for node in graph.nodes() if cwgraph.nodes[node]['type']=='underflow'}
+
     worker = {node: {} for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'worker'}
     print(len(worker))
     print(len(list(cwgraph.edges)))
 
     testing = Testing()
-    scores, runtimes, times, graphs = testing.test([UGA(), Local_Ratio(), TRM(), RSL(), UGA_RSL()], data, 5)
+    scores, runtimes, times, graphs, sdists = testing.test([UGA(),UGA_RSL(), RSL1(),Local_Ratio(), TRM(), RSL()], data, interval=2, epsilon=0.2, trials=30)
 
     scores_df = pd.DataFrame(np.abs(scores), columns=['UGA', 'Local_Ratio', 'TRM', 'RSL', 'UGA_RSL'])
     runtimes_df = pd.DataFrame(np.abs(runtimes), columns=['UGA', 'Local_Ratio', 'TRM', 'RSL', 'UGA_RSL'])
     scores_df.to_csv('outputs/scores.csv')
-    runtimes_df.to_csv('outputs/times.csv')
+    runtimes_df.to_csv('outputs/runtimes.csv')
     times_df = pd.DataFrame(times)
     graphs_df = pd.DataFrame(graphs)
     times_df.to_csv('outputs/times.csv')
     graphs_df.to_csv('outputs/graphs.csv')
-    for g, graph in enumerate(graphs):
-        nx.write_adjlist(graph, "outputs/test" + str(g) + ".adjlist")
+    sdists_df = pd.DataFrame(sdists)
+    sdists_df.to_csv('outputs/sdists.csv')
+    print(graphs_df)
+    print(sdists_df)
     print(scores_df.head())
     print(runtimes_df.head())
+
+    #ur = UGA_RSL()
+    #print(ur.find_optimal(cwgraph))
+    #u = UGA()
+    #print(u.find_optimal(cwgraph))

@@ -10,10 +10,10 @@ import utm
 
 def build_station_graph(data, starttime, stoptime):
     graphx = nx.Graph()
-    start_time='started_at'
-    end_time='ended_at'
-    start_station_name='start_station_name'
-    end_station_name='end_station_name'
+    start_time = 'started_at'
+    end_time = 'ended_at'
+    start_station_name = 'start_station_name'
+    end_station_name = 'end_station_name'
     filtered_data = data[(data[start_time] >= starttime) & (data[start_time] <= stoptime)]
     locations = list(set(filtered_data[start_station_name].values).union(filtered_data[end_station_name].values))
     vertices = pd.Series([{}] * len(locations), index=locations)
@@ -83,7 +83,7 @@ def build_cwgraph(data, starttime, stoptime, epsilon, radius):
             xe, ye, _, __ = utm.from_latlon(filtered_data.loc[i, 'end_lat'], filtered_data.loc[i, 'end_lng'])
 
         workers.append({'type': 'worker', 'change': 0, 'xs': xs + radius * (1 - 2 * np.random.random()),
-                        'ys': ys+500 * (1 - 2 * np.random.random()), 'xe': xe + radius * (1 - 2 * np.random.random()),
+                        'ys': ys + 500 * (1 - 2 * np.random.random()), 'xe': xe + radius * (1 - 2 * np.random.random()),
                         'ye': ye + 500 * (1 - 2 * np.random.random())})
     cwgraph = copy.deepcopy(cgraph)
     # print(cwgraph.nodes)
@@ -138,3 +138,23 @@ def draw_graph(B):
 
 def euc_dis(x1, y1, x2, y2):
     return ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** .5
+
+
+def find_nearest_station(x, y, stype, cwgraph):
+    best_station = None
+    best_score = float('inf')
+    for station in cwgraph.nodes:
+        if cwgraph.nodes[station]['type'] == stype and euc_dis(cwgraph.nodes[station]['x'], cwgraph.nodes[station]['y'],
+                                                               x, y) < best_score:
+            best_score = euc_dis(cwgraph.nodes[station]['x'], cwgraph.nodes[station]['y'], x, y)
+            best_station = station
+    return best_station, best_score
+
+
+def get_shortest_assignment(cwgraph):
+    dist = 0
+    for vertex in cwgraph.nodes:
+        if cwgraph.nodes[vertex]['type'] == 'worker':
+            dist += find_nearest_station(cwgraph.nodes[vertex]['xs'], cwgraph.nodes[vertex]['ys'], 'overflow', cwgraph)[1]
+            dist += find_nearest_station(cwgraph.nodes[vertex]['xe'], cwgraph.nodes[vertex]['ye'], 'underflow', cwgraph)[1]
+    return  dist
