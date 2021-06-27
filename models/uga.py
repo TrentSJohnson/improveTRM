@@ -184,7 +184,7 @@ class UGA:
 
     def test(self, cwgraph):
         self.meta_graph = cwgraph
-        return self.run(0, 0.0002, 4, 12)
+        return self.run(0, 0.0002, 8, 24)
 
     def find_optimal(self, cwgraph):
         self.meta_graph = cwgraph

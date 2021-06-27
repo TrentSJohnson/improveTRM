@@ -7,7 +7,14 @@ import numpy as np
 import pandas as pd
 import utm
 
-
+start_time = 'started_at'
+end_time = 'ended_at'
+start_station_name = 'start_station_name'
+end_station_name = 'end_station_name'
+start_lat='start_lat'
+start_lng='start_lng'
+end_lat='end_lat'
+end_lng='end_lng'
 def build_station_graph(data, starttime, stoptime):
     graphx = nx.Graph()
     start_time = 'started_at'
@@ -24,13 +31,13 @@ def build_station_graph(data, starttime, stoptime):
         start = filtered_data.loc[i, start_station_name]
         if (not finished[start]):
             finished[start] = True
-            x, y, _, __ = utm.from_latlon(filtered_data.loc[i, 'start_lat'], filtered_data.loc[i, 'start_lng'])
+            x, y, _, __ = utm.from_latlon(filtered_data.loc[i, start_lat], filtered_data.loc[i, start_lng])
             vertices[start] = {'change': 0, 'x': x, 'y': y, 'type': ''}
 
         end = filtered_data.loc[i, end_station_name]
         if (not finished[end]):
             finished[end] = True
-            x, y, _, __ = utm.from_latlon(filtered_data.loc[i, 'end_lat'], filtered_data.loc[i, 'end_lng'])
+            x, y, _, __ = utm.from_latlon(filtered_data.loc[i, end_lat], filtered_data.loc[i, end_lng])
             vertices[end] = {'change': 0, 'x': x, 'y': y, 'type': ''}
     for i in filtered_data[start_station_name]:
         vertices[i]['change'] -= 1
@@ -60,11 +67,8 @@ def build_station_graph(data, starttime, stoptime):
     return graphx
 
 
+
 def build_cwgraph(data, starttime, stoptime, epsilon, radius):
-    start_time = 'started_at'
-    end_time = 'ended_at'
-    start_station_name = 'start_station_name'
-    end_station_name = 'end_station_name'
     graph = build_station_graph(data, starttime, stoptime)
     filtered_data = data[(data[start_time] >= starttime) & (data[start_time] <= stoptime)]
     cgraph = cloned_station_vertices(graph)

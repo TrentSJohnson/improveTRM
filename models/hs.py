@@ -1,5 +1,5 @@
 from random import shuffle
-from tqdm import tqdm
+
 import networkx as nx
 from networkx.algorithms import bipartite
 
@@ -103,7 +103,7 @@ class HS:
         finished = set()
         temp = {}
         for v in matching.nodes:
-            if not(v in finished):
+            if not (v in finished):
                 temp = {}
                 neighbors = list(matching.neighbors(v))
 
@@ -119,20 +119,20 @@ class HS:
             w += self.euc_tri(i['worker'], i['underflow'], i['overflow'], graph)
         return w
 
-    def search(self, graph, cwgraph):
+    def search(self, graph, cwgraph, max_rounds=float('inf')):
         best_score = float('inf')
         best_matching = None
         stalled_rounds = 0
         constrain_types = ['worker_overflow', 'overflow_underflow', 'underflow_worker']
         i = 0
-        while stalled_rounds < 1:
+        while stalled_rounds < 1 and i < max_rounds:
             shuffle(constrain_types)
             for constrain_type in constrain_types:
                 matching = self.constrain_graph(graph, constrain_type, cwgraph)
                 graph = self.update_graph(matching)
             score = self.matching_score(graph, cwgraph)
             i += 1
-            #print(i)
+            # print(i)
             if score < best_score:
                 best_score = score
                 best_matching = graph
@@ -175,7 +175,15 @@ class RSL:
         return self.optimize(cwgraph)
 
 
-class TRM_RSL:
+class TRM_RSL(RSL):
     def make_graph(self, cwgraph):
         trm = TRM()
         return trm.test(cwgraph)[0]
+
+
+class RSLL(RSL):
+    def test(self, cwgraph):
+        graph = self.make_graph(cwgraph)
+        hs = HS()
+        return hs.search(graph, cwgraph, max_rounds=2)
+

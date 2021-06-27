@@ -1,11 +1,7 @@
 from datetime import timedelta, datetime
-from multiprocessing import Pool
-
-import numpy as np
-from tqdm import tqdm
 
 from graphprocessing import *
-from models.hs import RSL
+from models.hs import RSL, TRM_RSL, RSLL
 from models.local_ratio import Local_Ratio
 from models.trm import TRM
 from models.uga import UGA_RSL, UGA, RSL1
@@ -31,7 +27,7 @@ class Testing:
             temp.append(score)
             tempt.append((datetime.now() - start).total_seconds())
             print(score)
-        return (temp,tempt,len(list(graph.nodes)),start_time_dt,get_shortest_assignment(graph))
+        return (temp, tempt, len(list(graph.nodes)), start_time_dt, get_shortest_assignment(graph))
 
     def test(self, algorithms, data, interval, start_time_='started_at', epsilon=1.0, radius=500, trials=10):
         self.scores = []
@@ -41,7 +37,7 @@ class Testing:
         self.times = []
         results = []
         for i in range(trials):
-            results.append(self.test_(algorithms, data, interval, start_time_, epsilon, radius) )
+            results.append(self.test_(algorithms, data, interval, start_time_, epsilon, radius))
         scores = [results[i][0] for i in range(len(results))]
         runtimes = [results[i][1] for i in range(len(results))]
         graph_sizes = [results[i][2] for i in range(len(results))]
@@ -50,19 +46,50 @@ class Testing:
         return scores, runtimes, times, graph_sizes, sdists
 
 
-if __name__ == '__main__':
-    start_time = 'started_at'
-    end_time = 'ended_at'
-    start_station_name = 'start_station_name'
-    end_station_name = 'end_station_name'
+def run_test(datam, name='citi'):
+    testing = Testing()
+    scores, runtimes, times, graphs, sdists = testing.test(
+        [UGA(), UGA_RSL(), RSL1(), Local_Ratio(), TRM(), RSL(), TRM_RSL(), RSLL()],
+        data, interval=1, epsilon=0.2, trials=5)
 
+    scores_df = pd.DataFrame(np.abs(scores),
+                             columns=['UGA', 'UGA_RSL', 'RSL1', 'Local_Ratio', 'TRM', 'RSL', 'TRM_RSL', 'RSLL'])
+    runtimes_df = pd.DataFrame(np.abs(runtimes),
+                               columns=['UGA', 'UGA_RSL', 'RSL1', 'Local_Ratio', 'TRM', 'RSL', 'TRM_RSL', 'RSLL'])
+    scores_df.to_csv('outputs/scores_' + name + '.csv')
+    runtimes_df.to_csv('outputs/runtimes_' + name + '.csv')
+    times_df = pd.DataFrame(times)
+    graphs_df = pd.DataFrame(graphs)
+    times_df.to_csv('outputs/times_' + name + '.csv')
+    graphs_df.to_csv('outputs/graphs_' + name + '.csv')
+    sdists_df = pd.DataFrame(sdists)
+    sdists_df.to_csv('outputs/sdists_citi.csv')
+
+
+def metrodate(s):
+    date, time = s.split(' ')
+    month, day, year = date.split('/')
+
+    hour, minute = time.split(':')
+    return {'month': int(month), 'day': int(day), 'year': int(year), 'hour': int(hour), 'minute': int(minute)}
+
+if __name__ == '__main__':
     data = pd.read_csv('data/202105-citibike-tripdata.csv')
     data = data.loc[[type(i) == str for i in data[start_station_name]]]
     data = data.loc[[type(i) == str for i in data[end_station_name]]]
-    #data = data.loc[data.index[:10000]]
+    # data = data.loc[data.index[:10000]]
     data[start_time] = data[start_time].apply(lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))
     data[end_time] = data[end_time].apply(lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))
 
+    metro = pd.read_csv('data/metro-trips-2021-q1.csv')
+    metro[start_time] = metro['start_time'].apply(lambda x: datetime(**metrodate(x)))
+    metro[end_time] = metro['end_time'].apply(lambda x: datetime(**metrodate(x)))
+    metro[start_station_name] = metro['start_station']
+    metro[end_station_name] = metro['end_station']
+    metro[start_lat] = metro['start_lat']
+    metro[start_lng] = metro['start_lon']
+    metro[end_lng] = metro['end_lon']
+    metro[end_lng] = metro['end_lon']
     # graph = build_station_graph(data,data.loc[0,start_time],data.loc[0,start_time]+timedelta(minutes=15))
     # print(graph['E 6 St & Avenue D'])
     # overflow = {node:{} for node in graph.nodes() if graph.nodes[node]['type']=='overflow'}
@@ -78,29 +105,11 @@ if __name__ == '__main__':
     # verflow = {node:{} for node in graph.nodes() if cwgraph.nodes[node]['type']=='overflow'}
     # underflow = {node:{} for node in graph.nodes() if cwgraph.nodes[node]['type']=='underflow'}
 
-    worker = {node: {} for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'worker'}
-    print(len(worker))
-    print(len(list(cwgraph.edges)))
+    run_test(metro, name='metro')
+    run_test(data, name='citi')
+    run_test(metro)
 
-    testing = Testing()
-    scores, runtimes, times, graphs, sdists = testing.test([UGA(),UGA_RSL(), RSL1(),Local_Ratio(), TRM(), RSL()], data, interval=2, epsilon=0.2, trials=30)
-
-    scores_df = pd.DataFrame(np.abs(scores), columns=['UGA','UGA_RSL', 'RSL1','Local_Ratio', 'TRM', 'RSL'])
-    runtimes_df = pd.DataFrame(np.abs(runtimes), columns=['UGA','UGA_RSL', 'RSL1','Local_Ratio', 'TRM', 'RSL'])
-    scores_df.to_csv('outputs/scores.csv')
-    runtimes_df.to_csv('outputs/runtimes.csv')
-    times_df = pd.DataFrame(times)
-    graphs_df = pd.DataFrame(graphs)
-    times_df.to_csv('outputs/times.csv')
-    graphs_df.to_csv('outputs/graphs.csv')
-    sdists_df = pd.DataFrame(sdists)
-    sdists_df.to_csv('outputs/sdists.csv')
-    print(graphs_df)
-    print(sdists_df)
-    print(scores_df.head())
-    print(runtimes_df.head())
-
-    #ur = UGA_RSL()
-    #print(ur.find_optimal(cwgraph))
-    #u = UGA()
-    #print(u.find_optimal(cwgraph))
+    # ur = UGA_RSL()
+    # print(ur.find_optimal(cwgraph))
+    # u = UGA()
+    # print(u.find_optimal(cwgraph))
