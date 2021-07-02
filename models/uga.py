@@ -7,7 +7,7 @@ from multiprocessing import Pool
 
 from tqdm import tqdm
 
-from models.hs import RSL, HS
+from models.hs import RLS, HS
 
 
 def euc_dis(x1, y1, x2, y2):
@@ -132,7 +132,8 @@ class UGA:
         bests = []
         for gen in range(gens):
             # get scores of species
-            scores = [self.euc_fitness(p) for p in pop]
+            with Pool(processes=4) as pool:
+                scores = pool.map(self.euc_fitness, pop)
                 
             #scores = [self.euc_fitness(s) for s in pop]
             bests.append(max(scores))
@@ -178,7 +179,8 @@ class UGA:
             if gen != gens-1:
                 pop=selected
             if not (spec_opt is None):
-                pop = [spec_opt(s) for s in pop]
+                with Pool(processes=4) as pool:
+                    pop = pool.map(spec_opt, pop)
             #pop = [spec_opt(s) for s in selected]
         return pop[np.argmax(scores)], np.max(bests), bests
 
@@ -209,7 +211,7 @@ class UGA:
 class UGA_RSL(UGA):
     def __init__(self, meta_graph=None):
         super().__init__(meta_graph)
-        self.rsl = RSL()
+        self.rsl = RLS()
         self.hs = HS()
 
     def build_matching(self):

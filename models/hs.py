@@ -119,13 +119,13 @@ class HS:
             w += self.euc_tri(i['worker'], i['underflow'], i['overflow'], graph)
         return w
 
-    def search(self, graph, cwgraph, max_rounds=float('inf')):
+    def search(self, graph, cwgraph, max_rounds=float('inf'),threshold=0):
         best_score = float('inf')
         best_matching = None
         stalled_rounds = 0
         constrain_types = ['worker_overflow', 'overflow_underflow', 'underflow_worker']
         i = 0
-        while stalled_rounds < 1 and i < max_rounds:
+        while stalled_rounds <= 1 and i < max_rounds:
             shuffle(constrain_types)
             for constrain_type in constrain_types:
                 matching = self.constrain_graph(graph, constrain_type, cwgraph)
@@ -134,15 +134,18 @@ class HS:
             i += 1
             # print(i)
             if score < best_score:
+                if best_score - score > threshold:
+                    #print(best_score-score)
+                    stalled_rounds = 0
                 best_score = score
                 best_matching = graph
-                stalled_rounds = 0
+
             else:
                 stalled_rounds += 1
         return best_matching, best_score
 
 
-class RSL:
+class RLS:
     def make_graph(self, cwgraph):
         overflow = [node for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'overflow']
         underflow = [node for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'underflow']
@@ -175,13 +178,13 @@ class RSL:
         return self.optimize(cwgraph)
 
 
-class TRM_RSL(RSL):
+class TRM_RLS(RLS):
     def make_graph(self, cwgraph):
         trm = TRM()
         return trm.test(cwgraph)[0]
 
 
-class RSLL(RSL):
+class RLSL(RLS):
     def test(self, cwgraph):
         graph = self.make_graph(cwgraph)
         hs = HS()

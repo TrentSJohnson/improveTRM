@@ -1,5 +1,3 @@
-import itertools
-
 import networkx as nx
 from networkx.algorithms import bipartite
 
@@ -22,15 +20,13 @@ class TRM:
             if '|' in u1:
                 u2 = matching[u1]
                 u1, u3 = u1.split('|')
-            else:
-                u2 = matching[u1]
-                u2, u3 = u2.split('|')
-            if not (u1 in finished):
-                temp[graph.nodes[u1]['type']] = u1
-                temp[graph.nodes[u2]['type']] = u2
-                temp[graph.nodes[u3]['type']] = u3
-                triplets.append(temp)
-                finished += [u1, u2, u3]
+
+                if not (u1 in finished):
+                    temp[graph.nodes[u1]['type']] = u1
+                    temp[graph.nodes[u2]['type']] = u2
+                    temp[graph.nodes[u3]['type']] = u3
+                    triplets.append(temp)
+                    finished += [u1, u2, u3]
         return triplets
 
     def matching_score(self, matching, graph):
@@ -45,11 +41,12 @@ class TRM:
 
     def matching_to_graph(self, matching, graph):
         new_graph = nx.Graph()
-        for triplet in self.matching_to_triplets(matching, graph):
+        triplets = self.matching_to_triplets(matching, graph)
+        for triplet in triplets:
             v = triplet.values()
             new_graph.add_nodes_from(v)
-            new_graph.add_edges_from([(v1,v2) for v1 in v for v2 in v if v1!=v2])
-        return graph
+            new_graph.add_edges_from([(v1, v2) for v1 in v for v2 in v if v1 != v2])
+        return new_graph
 
     def solve(self, cgraph, cwgraph, worker):
         matching = bipartite.matching.minimum_weight_full_matching(cgraph)

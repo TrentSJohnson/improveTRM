@@ -53,6 +53,7 @@ class Local_Ratio:
             G.add_edge(u, o)
         return G
 
+
     def solve(self, cwgraph):
         worker = {node: {} for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'worker'}
         overflow = {node: {} for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'overflow'}
@@ -98,8 +99,8 @@ class Local_Ratio:
         w_dict = {str(edge): x[edge].value() for edge in possible_edges}
         # print('starting ratio')
         # print(str(w_dict)[:300])
-
-        return f, self.total_cost(self.local_ratio(f, w_dict), cwgraph)
+        matching = self.local_ratio(f, w_dict)
+        return self.matching_to_graph(matching,cwgraph), self.total_cost(matching, cwgraph)
 
     def test(self, graph):
         return self.solve(graph)
