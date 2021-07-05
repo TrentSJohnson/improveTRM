@@ -17,6 +17,116 @@ end_lat = 'end_lat'
 end_lng = 'end_lng'
 
 
+def find_closest_overflow(w, u, cwgraph, stations):
+    best = float('inf')
+    besto = None
+    for o in stations:
+        temp = euc_dis(cwgraph.nodes[o]['x'], cwgraph.nodes[o]['y'], cwgraph.nodes[u]['x'],
+                       cwgraph.nodes[u]['y']) + euc_dis(cwgraph.nodes[w]['xe'], cwgraph.nodes[w]['ye'],
+                                                        cwgraph.nodes[u]['x'],
+                                                        cwgraph.nodes[u]['y']) + euc_dis(
+            cwgraph.nodes[w]['xs'], cwgraph.nodes[w]['ys'], cwgraph.nodes[o]['x'],
+            cwgraph.nodes[o]['y'])
+        if temp < best:
+            besto = o
+            best = temp
+    return besto
+
+
+def find_closest_underflow(w, o, cwgraph, stations):
+    best = float('inf')
+    bestu = None
+    for u in stations:
+        temp = euc_dis(cwgraph.nodes[o]['x'], cwgraph.nodes[o]['y'], cwgraph.nodes[u]['x'],
+                       cwgraph.nodes[u]['y']) + euc_dis(cwgraph.nodes[w]['xe'], cwgraph.nodes[w]['ye'],
+                                                        cwgraph.nodes[u]['x'],
+                                                        cwgraph.nodes[u]['y']) + euc_dis(
+            cwgraph.nodes[w]['xs'], cwgraph.nodes[w]['ys'], cwgraph.nodes[o]['x'],
+            cwgraph.nodes[o]['y'])
+        if temp < best:
+            bestu = u
+            best = temp
+    return bestu
+
+
+def find_closest_end(u, cwgraph, sources):
+    best = float('inf')
+    bestw = None
+    for w in sources:
+        temp = euc_dis(cwgraph.nodes[w]['xe'], cwgraph.nodes[w]['ye'], cwgraph.nodes[u]['x'], cwgraph.nodes[u]['y'])
+        if temp < best:
+            bestw = w
+            best = temp
+    return bestw
+
+
+def find_closest_start(o, cwgraph, sources):
+    best = float('inf')
+    bestw = None
+    for w in sources:
+        temp = euc_dis(cwgraph.nodes[w]['xs'], cwgraph.nodes[w]['ys'], cwgraph.nodes[o]['x'], cwgraph.nodes[o]['y'])
+        if temp < best:
+            bestw = w
+            best = temp
+    return bestw
+
+
+def scorer2(graph, cwgraph):
+    graph = complete_graph(graph, cwgraph)
+    overflow = [node for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'overflow']
+    worker = [node for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'worker']
+    underflow = [node for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'underflow']
+    c = 0
+    for w in worker:
+        s1, s2 = graph.neighbors(w)
+        u = s1 if cwgraph.nodes[s1]['type'] == 'underflow' else s2
+        o = s2 if u == s1 else s1
+        c += euc_dis(cwgraph.nodes[o]['x'], cwgraph.nodes[o]['y'], cwgraph.nodes[u]['x'],
+                     cwgraph.nodes[u]['y']) + euc_dis(cwgraph.nodes[w]['xe'], cwgraph.nodes[w]['ye'],
+                                                      cwgraph.nodes[u]['x'], cwgraph.nodes[u]['y']) + euc_dis(
+            cwgraph.nodes[w]['xs'], cwgraph.nodes[w]['ys'], cwgraph.nodes[o]['x'], cwgraph.nodes[o]['y'])
+    return c
+
+
+def complete_graph(graph, cwgraph):
+    c = 0
+    overflow = [node for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'overflow']
+    worker = [node for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'worker']
+    underflow = [node for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'underflow']
+    graph.add_nodes_from([node for node in cwgraph.nodes if not graph.has_node(node)])
+    overflow_nw = [o for o in overflow if all([cwgraph.nodes[n]['type'] != 'worker' for n in graph.neighbors(o)])]
+    underflow_nw = [u for u in underflow if all([cwgraph.nodes[n]['type'] != 'worker' for n in graph.neighbors(u)])]
+    worker_nu = [w for w in worker if all([cwgraph.nodes[n]['type'] != 'underflow' for n in graph.neighbors(w)])]
+    worker_no = [w for w in worker if all([cwgraph.nodes[n]['type'] != 'overflow' for n in graph.neighbors(w)])]
+
+    for u in underflow_nw:
+        print('STATION NOT ASSIGNED')
+        w = find_closest_end(u, cwgraph, worker_nu)
+
+        if not w is None:
+            worker_nu.remove(w)
+            graph.add_edge(w, u)
+    for o in overflow_nw:
+        print('STATION NOT ASSIGNED')
+        w = find_closest_start(o, cwgraph, worker_no)
+        if not w is None:
+            worker_no.remove(w)
+            graph.add_edge(w, o)
+    fs = set(worker_nu).intersection(worker_no)
+    for w in fs:
+        u = find_nearest_station(cwgraph.nodes[w]['xe'], cwgraph.nodes[w]['ye'], 'underflow', cwgraph)[0]
+        graph.add_edge(w, u)
+        worker_nu.remove(w)
+    for w in worker_no:
+        o = find_closest_overflow(w, list(graph.neighbors(w))[0], cwgraph, overflow)
+        graph.add_edge(w, o)
+
+    for w in worker_nu:
+        u = find_closest_underflow(w, list(graph.neighbors(w))[0], cwgraph, underflow)
+        graph.add_edge(w, u)
+    return graph
+
+
 def scorer(graph, cwgraph):
     c = 0
     overflow = [node for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'overflow']
@@ -71,12 +181,13 @@ def scorer(graph, cwgraph):
                 bestu = None
                 besto = None
                 for u in underflow:
-                    if not graph.has_node(u) or any([n for n in graph.neighbors(u)]):
+                    if len([n for n in graph.neighbors(u)]):
                         for o in overflow:
-                            if (not graph.has_node(o)) or (not any([graph.nodes[n]['type'] == 'worker' for n in graph.neighbors(o)])):
+                            if (not any([graph.nodes[n]['type'] == 'worker' for n in graph.neighbors(o)])):
 
                                 temp = euc_dis(cwgraph.nodes[o]['x'], cwgraph.nodes[o]['y'], cwgraph.nodes[u]['x'],
-                                               cwgraph.nodes[u]['y']) + euc_dis(cwgraph.nodes[w]['xe'], cwgraph.nodes[w]['ye'],
+                                               cwgraph.nodes[u]['y']) + euc_dis(cwgraph.nodes[w]['xe'],
+                                                                                cwgraph.nodes[w]['ye'],
                                                                                 cwgraph.nodes[u]['x'],
                                                                                 cwgraph.nodes[u]['y']) + euc_dis(
                                     cwgraph.nodes[w]['xs'], cwgraph.nodes[w]['ys'], cwgraph.nodes[o]['x'],
@@ -85,7 +196,8 @@ def scorer(graph, cwgraph):
                                     best = temp
                                     bestu = u
                                     besto = o
-                u = bestu
+                if bestu is None:
+                    u = bestu
                 o = besto
                 if bestu is None and not besto is None:
                     for u in underflow:
@@ -128,20 +240,24 @@ def scorer(graph, cwgraph):
                     o = s[1] if cwgraph.nodes[s[0]]['type'] == 'worker' else s[0]
                     c += euc_dis(cwgraph.nodes[o]['x'], cwgraph.nodes[o]['y'], cwgraph.nodes[u]['x'],
                                  cwgraph.nodes[u]['y']) + euc_dis(cwgraph.nodes[w]['xe'], cwgraph.nodes[w]['ye'],
-                                                                  cwgraph.nodes[u]['x'], cwgraph.nodes[u]['y']) + euc_dis(
+                                                                  cwgraph.nodes[u]['x'],
+                                                                  cwgraph.nodes[u]['y']) + euc_dis(
                         cwgraph.nodes[w]['xs'], cwgraph.nodes[w]['ys'], cwgraph.nodes[o]['x'], cwgraph.nodes[o]['y'])
 
                 elif len(s) == 1:
                     if cwgraph.nodes[s[0]]['type'] == 'worker':
-                        w=s[0]
+                        w = s[0]
                         best = float('inf')
                         bestp = None
                         for o in overflow:
-                            temp =euc_dis(cwgraph.nodes[o]['x'], cwgraph.nodes[o]['y'], cwgraph.nodes[u]['x'],
-                                 cwgraph.nodes[u]['y']) + euc_dis(cwgraph.nodes[w]['xe'], cwgraph.nodes[w]['ye'],
-                                                                  cwgraph.nodes[u]['x'], cwgraph.nodes[u]['y']) + euc_dis(
-                                cwgraph.nodes[w]['xs'], cwgraph.nodes[w]['ys'], cwgraph.nodes[o]['x'], cwgraph.nodes[o]['y'])
-                            if best>temp:
+                            temp = euc_dis(cwgraph.nodes[o]['x'], cwgraph.nodes[o]['y'], cwgraph.nodes[u]['x'],
+                                           cwgraph.nodes[u]['y']) + euc_dis(cwgraph.nodes[w]['xe'],
+                                                                            cwgraph.nodes[w]['ye'],
+                                                                            cwgraph.nodes[u]['x'],
+                                                                            cwgraph.nodes[u]['y']) + euc_dis(
+                                cwgraph.nodes[w]['xs'], cwgraph.nodes[w]['ys'], cwgraph.nodes[o]['x'],
+                                cwgraph.nodes[o]['y'])
+                            if best > temp:
                                 best = temp
                                 bestp = o
                         o = bestp
@@ -149,7 +265,8 @@ def scorer(graph, cwgraph):
                                      cwgraph.nodes[u]['y']) + euc_dis(cwgraph.nodes[w]['xe'], cwgraph.nodes[w]['ye'],
                                                                       cwgraph.nodes[u]['x'],
                                                                       cwgraph.nodes[u]['y']) + euc_dis(
-                            cwgraph.nodes[w]['xs'], cwgraph.nodes[w]['ys'], cwgraph.nodes[o]['x'], cwgraph.nodes[o]['y'])
+                            cwgraph.nodes[w]['xs'], cwgraph.nodes[w]['ys'], cwgraph.nodes[o]['x'],
+                            cwgraph.nodes[o]['y'])
         return c
 
     for o in overflow:
@@ -182,7 +299,8 @@ def scorer(graph, cwgraph):
                     u = bestp
                     c += euc_dis(cwgraph.nodes[o]['x'], cwgraph.nodes[o]['y'], cwgraph.nodes[u]['x'],
                                  cwgraph.nodes[u]['y']) + euc_dis(cwgraph.nodes[w]['xe'], cwgraph.nodes[w]['ye'],
-                                                                  cwgraph.nodes[u]['x'], cwgraph.nodes[u]['y']) + euc_dis(
+                                                                  cwgraph.nodes[u]['x'],
+                                                                  cwgraph.nodes[u]['y']) + euc_dis(
                         cwgraph.nodes[w]['xs'], cwgraph.nodes[w]['ys'], cwgraph.nodes[o]['x'], cwgraph.nodes[o]['y'])
 
     return c

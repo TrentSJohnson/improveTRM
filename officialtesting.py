@@ -31,21 +31,23 @@ class Testing:
         print('nodes:', len(cwgraph.nodes))
         temp = []
         tempt = []
+        short = get_shortest_assignment(cwgraph)
+        print('shortest:',short)
         for algo in algorithms:
             if len(list(cwgraph.nodes)) < 500 or (algo != algorithms[1]):
                 print(str(algo))
                 start = datetime.now()
                 graph = algo.test(cwgraph)[0]
-                score = scorer(graph, cwgraph=cwgraph)
+                score = scorer2(graph, cwgraph=cwgraph)
                 temp.append(score)
                 tempt.append((datetime.now() - start).total_seconds())
                 print(score)
             else:
                 temp.append(np.nan)
                 tempt.append(np.nan)
-        return (temp, tempt, len(list(graph.nodes)), start_time_dt, get_shortest_assignment(cwgraph))
+        return (temp, tempt, len(list(cwgraph.nodes)), start_time_dt, short)
 
-    def test(self, algorithms, data, interval, epsilon=1.0, radius=500, trials=2, begin_interval=None,
+    def test(self, algorithms, data, interval, epsilon=1.0, radius=500, trials=1, begin_interval=None,
              end_interval=None):
         self.scores = []
         # epochs = int((max(data.starttime)-start_time).total_seconds()/(60*15))
@@ -68,7 +70,7 @@ class Testing:
 def run_test(data, name='citi', interval=1, begin_interval=None, end_interval=None, trial=''):
     testing = Testing()
     scores, runtimes, times, graphs, sdists = testing.test([TRM(), Local_Ratio(), UGA_RSL(), RLS(), TRM_RLS()],
-                                                           data, interval=interval, epsilon=1, trials=2,
+                                                           data, interval=interval, epsilon=.2, trials=1,
                                                            begin_interval=begin_interval, end_interval=end_interval)
 
     cols = ['TRM', 'Local Ratio', 'GHS', 'RHS', 'TRHS']
@@ -129,14 +131,16 @@ if __name__ == '__main__':
     data[start_time] = data[start_time].apply(lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))
     data[end_time] = data[end_time].apply(lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))
     start = datetime(day=1, month=5, year=2021)
-    for i in range(30):
+    for i in range(60):
         if start.weekday() in [0, 6]:
-            run_test(data, name='capital', interval=1, begin_interval=start, end_interval=start + timedelta(hours=10),
+            run_test(data, name='capital', interval=15, begin_interval=start, end_interval=start + timedelta(hours=10),
                      trial='weekend' + str(i))
         else:
-            run_test(data, name='capital', interval=1, begin_interval=start, end_interval=start + timedelta(hours=10),
+            run_test(data, name='capital', interval=15, begin_interval=start, end_interval=start + timedelta(hours=10),
                      trial='weekday' + str(i))
-        start += timedelta(days=1)
+        if i%2 == 1:
+            start += timedelta(days=1)
+
 
     data = pd.read_csv('data/202105-citibike-tripdata.csv')
     data = data.loc[[type(i) == str for i in data[start_station_name]]]
@@ -145,14 +149,15 @@ if __name__ == '__main__':
     data[start_time] = data[start_time].apply(lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))
     data[end_time] = data[end_time].apply(lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))
     start = datetime(day=1, month=5, year=2021)
-    for i in range(30):
+    for i in range(60):
         if start.weekday() in [0, 6]:
-            run_test(data, name='citi', interval=15, begin_interval=start, end_interval=start + timedelta(hours=10),
+            run_test(data, name='citi', interval=1, begin_interval=start, end_interval=start + timedelta(hours=10),
                      trial='weekend' + str(i))
         else:
-            run_test(data, name='citi', interval=15, begin_interval=start, end_interval=start + timedelta(hours=10),
+            run_test(data, name='citi', interval=1, begin_interval=start, end_interval=start + timedelta(hours=10),
                      trial='weekday' + str(i))
-        start += timedelta(days=1)
+        if i%2 == 1:
+            start += timedelta(days=1)
 
 
     # ur = UGA_RSL()
