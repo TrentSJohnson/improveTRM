@@ -1,6 +1,7 @@
 from datetime import timedelta, datetime
 
 import numpy as np
+from tqdm import tqdm
 
 from graphprocessing import *
 from models.hs import RLS, TRM_RLS
@@ -122,42 +123,68 @@ if __name__ == '__main__':
     # print('edgesss',graph.edges)
     # print('vertixxx',graph.nodes)
     #
+    for e in tqdm([0.2,0.4,0.6,0.8,1]):
+        print('new round')
 
-    # cgraph = cloned_station_vertices(graph)
-    data = pd.read_csv('data/202105-capitalbikeshare-tripdata.csv')
-    data = data.loc[[type(i) == str for i in data[start_station_name]]]
-    data = data.loc[[type(i) == str for i in data[end_station_name]]]
-    # data = data.loc[data.index[:10000]]
-    data[start_time] = data[start_time].apply(lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))
-    data[end_time] = data[end_time].apply(lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))
-    start = datetime(day=1, month=5, year=2021)
-    for i in range(60):
-        if start.weekday() in [0, 6]:
-            run_test(data, name='capital', interval=15, begin_interval=start, end_interval=start + timedelta(hours=10),
-                     trial='weekend' + str(i))
-        else:
-            run_test(data, name='capital', interval=15, begin_interval=start, end_interval=start + timedelta(hours=10),
-                     trial='weekday' + str(i))
-        if i%2 == 1:
-            start += timedelta(days=1)
+        data = pd.read_csv('data/202105-bluebikes-tripdata.csv')
+        data[start_station_name] = data['start station name']
+        data[end_station_name] = data['end station name']
+        data[start_lat] = data['start station latitude']
+        data[start_lng] = data['start station longitude']
+        data[end_lat] = data['end station latitude']
+        data[end_lng] = data['end station longitude']
+        data[start_time] = data['starttime']
+        data[end_time] = data['stoptime']
+        data = data.loc[[type(i) == str for i in data[start_station_name]]]
+        data = data.loc[[type(i) == str for i in data[end_station_name]]]
+        # data = data.loc[data.index[:10000]]
+        data[start_time] = data[start_time].apply(lambda x: datetime.strptime(x.split('.')[0], "%Y-%m-%d %H:%M:%S"))
+        data[end_time] = data[end_time].apply(lambda x: datetime.strptime(x.split('.')[0], "%Y-%m-%d %H:%M:%S"))
+        start = datetime(day=1, month=5, year=2021)
+        for i in range(60):
+            if start.weekday() in [0, 6]:
+                run_test(data, name='capital', interval=15, begin_interval=start, end_interval=start + timedelta(hours=10),
+                         trial='weekend' + str(i)+'_'+str(e))
+            else:
+                run_test(data, name='capital', interval=15, begin_interval=start, end_interval=start + timedelta(hours=10),
+                         trial='weekday' + str(i)+'_'+str(e))
+            if i%2 == 1:
+                start += timedelta(days=1)
+
+        data = pd.read_csv('data/202105-capitalbikeshare-tripdata.csv')
+        data = data.loc[[type(i) == str for i in data[start_station_name]]]
+        data = data.loc[[type(i) == str for i in data[end_station_name]]]
+        # data = data.loc[data.index[:10000]]
+        data[start_time] = data[start_time].apply(lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))
+        data[end_time] = data[end_time].apply(lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))
+        start = datetime(day=1, month=5, year=2021)
+        for i in range(60):
+            if start.weekday() in [0, 6]:
+                run_test(data, name='capital', interval=15, begin_interval=start, end_interval=start + timedelta(hours=10),
+                         trial='weekend' + str(i)+'_'+str(e))
+            else:
+                run_test(data, name='capital', interval=15, begin_interval=start, end_interval=start + timedelta(hours=10),
+                         trial='weekday' + str(i)+'_'+str(e))
+            if i % 2 == 1:
+                start += timedelta(days=1)
 
 
-    data = pd.read_csv('data/202105-citibike-tripdata.csv')
-    data = data.loc[[type(i) == str for i in data[start_station_name]]]
-    data = data.loc[[type(i) == str for i in data[end_station_name]]]
-    # data = data.loc[data.index[:10000]]
-    data[start_time] = data[start_time].apply(lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))
-    data[end_time] = data[end_time].apply(lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))
-    start = datetime(day=1, month=5, year=2021)
-    for i in range(60):
-        if start.weekday() in [0, 6]:
-            run_test(data, name='citi', interval=1, begin_interval=start, end_interval=start + timedelta(hours=10),
-                     trial='weekend' + str(i))
-        else:
-            run_test(data, name='citi', interval=1, begin_interval=start, end_interval=start + timedelta(hours=10),
-                     trial='weekday' + str(i))
-        if i%2 == 1:
-            start += timedelta(days=1)
+        data = pd.read_csv('data/202105-citibike-tripdata.csv')
+        data = data.loc[[type(i) == str for i in data[start_station_name]]]
+        data = data.loc[[type(i) == str for i in data[end_station_name]]]
+        # data = data.loc[data.index[:10000]]
+        data[start_time] = data[start_time].apply(lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))
+        data[end_time] = data[end_time].apply(lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))
+        start = datetime(day=1, month=5, year=2021)
+        for i in range(60):
+            if start.weekday() in [0, 6]:
+                run_test(data, name='citi', interval=1, begin_interval=start, end_interval=start + timedelta(hours=10),
+                         trial='weekend' + str(i)+'_'+str(e))
+            else:
+                run_test(data, name='citi', interval=1, begin_interval=start, end_interval=start + timedelta(hours=10),
+                         trial='weekday' + str(i)+'_'+str(e))
+            if i%2 == 1:
+                start += timedelta(days=1)
 
 
     # ur = UGA_RSL()
