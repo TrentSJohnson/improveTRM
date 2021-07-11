@@ -4,3 +4,12 @@ venv
 __pycache__
 models/__pycache__
 .spyproject
+figures/.DS_Store
+.DS_Store
+outputs copy/.DS_Store
+.DS_Store
+__pycache__/graphprocessing.cpython-38.pyc
+models/__pycache__/hs.cpython-38.pyc
+models/__pycache__/local_ratio.cpython-38.pyc
+models/__pycache__/trm.cpython-38.pyc
+models/__pycache__/uga.cpython-38.pyc
