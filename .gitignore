@@ -1,5 +1,6 @@
 data/202105-citibike-tripdata.csv
 .idea
 venv
-
+__pycache__
+models/__pycache__
 .spyproject
