@@ -255,7 +255,7 @@ class UGA_RSL(UGA):
                 best_score = score
         return best_param
 
-    def test(self, cwgraph, gens=5, pop_size=5):
+    def test(self, cwgraph, gens=4, pop_size=3):
         self.meta_graph = cwgraph
         return self.run_(0.002, gens=gens, pop_size=pop_size)
 
