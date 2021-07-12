@@ -313,6 +313,8 @@ def build_station_graph(data, starttime, stoptime):
     start_station_name = 'start_station_name'
     end_station_name = 'end_station_name'
     filtered_data = data[(data[start_time] >= starttime) & (data[start_time] <= stoptime)].dropna()
+    dt = stoptime-starttime
+    filtered_data_past = data[(data[start_time] >= starttime-dt) & (data[start_time] <= stoptime-dt)].dropna()
     locations = list(set(filtered_data[start_station_name].values).union(filtered_data[end_station_name].values))
     vertices = pd.Series([{}] * len(locations), index=locations)
 
@@ -330,10 +332,12 @@ def build_station_graph(data, starttime, stoptime):
             finished[end] = True
             x, y, _, __ = utm.from_latlon(filtered_data.loc[i, end_lat], filtered_data.loc[i, end_lng])
             vertices[end] = {'change': 0, 'x': x, 'y': y, 'type': ''}
-    for i in filtered_data[start_station_name]:
-        vertices[i]['change'] -= 1
-    for i in filtered_data[end_station_name]:
-        vertices[i]['change'] += 1
+    for i in filtered_data_past[start_station_name]:
+        if i in vertices.index:
+            vertices[i]['change'] -= 1
+    for i in filtered_data_past[end_station_name]:
+        if i in vertices.index:
+            vertices[i]['change'] += 1
     for loc in locations:
         if vertices[loc]['change'] > 0:
             vertices[loc]['type'] = 'overflow'

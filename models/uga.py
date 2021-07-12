@@ -208,7 +208,7 @@ class UGA:
 
 
 
-class UGA_RSL(UGA):
+class UGA_RLS(UGA):
     def __init__(self, meta_graph=None):
         super().__init__(meta_graph)
         self.rsl = RLS()
@@ -259,7 +259,7 @@ class UGA_RSL(UGA):
         self.meta_graph = cwgraph
         return self.run_(0.002, gens=gens, pop_size=pop_size)
 
-class RSL1(UGA_RSL):
+class RLS1(UGA_RLS):
     def test(self, cwgraph, pop_size=5, gens=None):
         self.meta_graph = cwgraph
         return self.run_(0, gens=1, pop_size=5)
