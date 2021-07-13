@@ -27,7 +27,7 @@ class Testing:
         n_worker = filtered_data[(filtered_data[start_time] >= start_time_dt) &
                                  (filtered_data[start_time] <= start_time_dt + td)].shape[0]
         m=1
-        while len(graph.nodes) < 75 or len(graph.nodes)+n_worker > 200:
+        while len(graph.nodes) < 100 or len(graph.nodes)+n_worker > 300:
             print('failed',len(graph.nodes))
             start_time_dt = data[start_time][np.random.choice(data.index)]
             m *= 5/ 4 if len(graph.nodes) < 75 else   3/4
@@ -107,7 +107,7 @@ def metrodate(s):
 
 
 if __name__ == '__main__':
-    for j in range(30):
+    for j in tqdm(range(1,30)):
         data = pd.read_csv('data/202105-citibike-tripdata.csv')
         data = data.loc[[type(i) == str for i in data[start_station_name]]]
         data = data.loc[[type(i) == str for i in data[end_station_name]]]
@@ -115,7 +115,7 @@ if __name__ == '__main__':
         data[start_time] = data[start_time].apply(lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))
         data[end_time] = data[end_time].apply(lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))
         start = datetime(day=np.random.randint(1, 30), month=5, year=2021, hour=7)
-        for i in tqdm(range(15+j,16+j)):
+        for i in range(j,1+j):
             if start.weekday() in [0, 6]:
                 run_test(data, name='citi', interval=1, begin_interval=start, end_interval=start + timedelta(hours=12),
                          trial='weekend' + str(i))
@@ -140,7 +140,7 @@ if __name__ == '__main__':
         data[end_time] = data[end_time].apply(lambda x: datetime.strptime(x.split('.')[0], "%Y-%m-%d %H:%M:%S"))
         start = datetime(day=np.random.randint(1, 30), month=5, year=2021, hour=7)
 
-        for i in tqdm(range(15+j,16+j)):
+        for i in range(j,1+j):
             if start.weekday() in [0, 6]:
                 run_test(data, name='blue', interval=10, begin_interval=start, end_interval=start + timedelta(hours=12),
                          trial='weekend' + str(i))
@@ -157,7 +157,7 @@ if __name__ == '__main__':
         data[start_time] = data[start_time].apply(lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))
         data[end_time] = data[end_time].apply(lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))
         start = datetime(day=np.random.randint(1, 30), month=5, year=2021, hour=7)
-        for i in tqdm(range(15+j,16+j)):
+        for i in range(j,1+j):
             if start.weekday() in [0, 6]:
                 run_test(data, name='capital', interval=10, begin_interval=start, end_interval=start + timedelta(hours=12),
                          trial='weekend' + str(i))
