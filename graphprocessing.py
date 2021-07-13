@@ -49,6 +49,67 @@ def find_closest_underflow(w, o, cwgraph, stations):
     return bestu
 
 
+def find_opt_end(w, o, us, cwgraph):
+    if len(us) == 1:
+        return us[0]
+    dis = euc_dis(cwgraph.nodes[o]['x'], cwgraph.nodes[o]['y'], cwgraph.nodes[us[0]]['x'],
+                  cwgraph.nodes[us[0]]['y']) + euc_dis(cwgraph.nodes[w]['xe'], cwgraph.nodes[w]['ye'],
+                                                       cwgraph.nodes[us[0]]['x'],
+                                                       cwgraph.nodes[us[0]]['y']) + euc_dis(
+        cwgraph.nodes[w]['xs'], cwgraph.nodes[w]['ys'], cwgraph.nodes[o]['x'],
+        cwgraph.nodes[o]['y'])
+    recu = find_opt_end(w, o, us[1:], cwgraph)
+    recdis = euc_dis(cwgraph.nodes[o]['x'], cwgraph.nodes[o]['y'], cwgraph.nodes[recu]['x'],
+                     cwgraph.nodes[recu]['y']) + euc_dis(cwgraph.nodes[w]['xe'], cwgraph.nodes[w]['ye'],
+                                                         cwgraph.nodes[recu]['x'],
+                                                         cwgraph.nodes[recu]['y']) + euc_dis(
+        cwgraph.nodes[w]['xs'], cwgraph.nodes[w]['ys'], cwgraph.nodes[o]['x'],
+        cwgraph.nodes[o]['y'])
+    return us[0] if recdis > dis else recu
+
+
+def find_opt_start(w, u, os, cwgraph):
+    if len(os) == 1:
+        return os[0]
+    dis = euc_dis(cwgraph.nodes[u]['x'], cwgraph.nodes[u]['y'], cwgraph.nodes[os[0]]['x'],
+                  cwgraph.nodes[os[0]]['y']) + euc_dis(cwgraph.nodes[w]['xs'], cwgraph.nodes[w]['ys'],
+                                                       cwgraph.nodes[os[0]]['x'],
+                                                       cwgraph.nodes[os[0]]['y']) + euc_dis(
+        cwgraph.nodes[w]['xe'], cwgraph.nodes[w]['ye'], cwgraph.nodes[u]['x'],
+        cwgraph.nodes[u]['y'])
+    reco = find_opt_end(w, u, os[1:], cwgraph)
+    recdis = euc_dis(cwgraph.nodes[u]['x'], cwgraph.nodes[u]['y'], cwgraph.nodes[reco]['x'],
+                     cwgraph.nodes[reco]['y']) + euc_dis(cwgraph.nodes[w]['xs'], cwgraph.nodes[w]['ys'],
+                                                         cwgraph.nodes[reco]['x'],
+                                                         cwgraph.nodes[reco]['y']) + euc_dis(
+        cwgraph.nodes[w]['xe'], cwgraph.nodes[w]['ye'], cwgraph.nodes[u]['x'],
+        cwgraph.nodes[u]['y'])
+    return os[0] if recdis > dis else reco
+
+
+def find_opt_stations(w, os, us, cwgraph):
+    if len(os) == 1:
+        return os[0], find_opt_end(w, os[0], us, cwgraph)
+    u = find_opt_end(w, os[0], us, cwgraph)
+    dis = euc_dis(cwgraph.nodes[u]['x'], cwgraph.nodes[u]['y'], cwgraph.nodes[os[0]]['x'],
+                  cwgraph.nodes[os[0]]['y']) + euc_dis(cwgraph.nodes[w]['xs'], cwgraph.nodes[w]['ys'],
+                                                       cwgraph.nodes[os[0]]['x'],
+                                                       cwgraph.nodes[os[0]]['y']) + euc_dis(
+        cwgraph.nodes[w]['xe'], cwgraph.nodes[w]['ye'], cwgraph.nodes[u]['x'],
+        cwgraph.nodes[u]['y'])
+    v = find_opt_stations(w, os[1:], us, cwgraph)
+    if len(v)!=2:
+        print(v)
+    reco, recu = v[0],v[1]
+    recdis = euc_dis(cwgraph.nodes[recu]['x'], cwgraph.nodes[recu]['y'], cwgraph.nodes[reco]['x'],
+                     cwgraph.nodes[reco]['y']) + euc_dis(cwgraph.nodes[w]['xs'], cwgraph.nodes[w]['ys'],
+                                                         cwgraph.nodes[reco]['x'],
+                                                         cwgraph.nodes[reco]['y']) + euc_dis(
+        cwgraph.nodes[w]['xe'], cwgraph.nodes[w]['ye'], cwgraph.nodes[recu]['x'],
+        cwgraph.nodes[recu]['y'])
+    return (os[0], u) if recdis > dis else (reco, recu)
+
+
 def find_closest_end(u, cwgraph, sources):
     best = float('inf')
     bestw = None
@@ -65,6 +126,7 @@ def find_closest_start(o, cwgraph, sources):
     bestw = None
     for w in sources:
         temp = euc_dis(cwgraph.nodes[w]['xs'], cwgraph.nodes[w]['ys'], cwgraph.nodes[o]['x'], cwgraph.nodes[o]['y'])
+
         if temp < best:
             bestw = w
             best = temp
@@ -99,30 +161,19 @@ def complete_graph(graph, cwgraph):
     worker_nu = [w for w in worker if all([cwgraph.nodes[n]['type'] != 'underflow' for n in graph.neighbors(w)])]
     worker_no = [w for w in worker if all([cwgraph.nodes[n]['type'] != 'overflow' for n in graph.neighbors(w)])]
 
-    for u in underflow_nw:
-        print('STATION NOT ASSIGNED')
-        w = find_closest_end(u, cwgraph, worker_nu)
-
-        if not w is None:
-            worker_nu.remove(w)
-            graph.add_edge(w, u)
-    for o in overflow_nw:
-        print('STATION NOT ASSIGNED')
-        w = find_closest_start(o, cwgraph, worker_no)
-        if not w is None:
-            worker_no.remove(w)
-            graph.add_edge(w, o)
-    fs = set(worker_nu).intersection(worker_no)
+    fs = list(set(worker_nu).intersection(worker_no))
     for w in fs:
-        u = find_nearest_station(cwgraph.nodes[w]['xe'], cwgraph.nodes[w]['ye'], 'underflow', cwgraph)[0]
+        o, u = find_opt_stations(w, overflow, underflow, cwgraph)
         graph.add_edge(w, u)
+        graph.add_edge(w, o)
         worker_nu.remove(w)
+        worker_no.remove(w)
     for w in worker_no:
-        o = find_closest_overflow(w, list(graph.neighbors(w))[0], cwgraph, overflow)
+        o = find_opt_start(w, list(cwgraph.neighbors(w))[0], overflow, cwgraph)
         graph.add_edge(w, o)
 
     for w in worker_nu:
-        u = find_closest_underflow(w, list(graph.neighbors(w))[0], cwgraph, underflow)
+        u = find_opt_end(w, list(cwgraph.neighbors(w))[0], underflow, cwgraph)
         graph.add_edge(w, u)
     return graph
 
@@ -313,8 +364,8 @@ def build_station_graph(data, starttime, stoptime):
     start_station_name = 'start_station_name'
     end_station_name = 'end_station_name'
     filtered_data = data[(data[start_time] >= starttime) & (data[start_time] <= stoptime)].dropna()
-    dt = stoptime-starttime
-    filtered_data_past = data[(data[start_time] >= starttime-dt) & (data[start_time] <= stoptime-dt)].dropna()
+    dt = stoptime - starttime
+    filtered_data_past = data[(data[start_time] >= starttime - dt) & (data[start_time] <= stoptime - dt)].dropna()
     locations = list(set(filtered_data[start_station_name].values).union(filtered_data[end_station_name].values))
     vertices = pd.Series([{}] * len(locations), index=locations)
 
