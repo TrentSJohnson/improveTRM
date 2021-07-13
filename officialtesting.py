@@ -114,7 +114,7 @@ if __name__ == '__main__':
         # data = data.loc[data.index[:10000]]
         data[start_time] = data[start_time].apply(lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))
         data[end_time] = data[end_time].apply(lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))
-        start = datetime(day=1, month=5, year=2021, hour=7)
+        start = datetime(day=np.random.randint(1, 30), month=5, year=2021, hour=7)
         for i in tqdm(range(15+j,16+j)):
             if start.weekday() in [0, 6]:
                 run_test(data, name='citi', interval=1, begin_interval=start, end_interval=start + timedelta(hours=12),
@@ -122,7 +122,7 @@ if __name__ == '__main__':
             else:
                 run_test(data, name='citi', interval=1, begin_interval=start, end_interval=start + timedelta(hours=12),
                          trial='weekday' + str(i))
-            if i % 2 < 2:
+            if i % 2 == 1:
                 start += timedelta(days=1)
         data = pd.read_csv('data/202105-bluebikes-tripdata.csv')
         data[start_station_name] = data['start station name']
@@ -138,7 +138,7 @@ if __name__ == '__main__':
         # data = data.loc[data.index[:10000]]
         data[start_time] = data[start_time].apply(lambda x: datetime.strptime(x.split('.')[0], "%Y-%m-%d %H:%M:%S"))
         data[end_time] = data[end_time].apply(lambda x: datetime.strptime(x.split('.')[0], "%Y-%m-%d %H:%M:%S"))
-        start = datetime(day=1, month=5, year=2021, hour=7)
+        start = datetime(day=np.random.randint(1, 30), month=5, year=2021, hour=7)
 
         for i in tqdm(range(15+j,16+j)):
             if start.weekday() in [0, 6]:
@@ -147,7 +147,7 @@ if __name__ == '__main__':
             else:
                 run_test(data, name='blue', interval=10, begin_interval=start, end_interval=start + timedelta(hours=12),
                          trial='weekday' + str(i))
-            if i % 2 < 2:
+            if i % 2 == 2:
                 start += timedelta(days=1)
 
         data = pd.read_csv('data/202105-capitalbikeshare-tripdata.csv')
@@ -156,7 +156,7 @@ if __name__ == '__main__':
         # data = data.loc[data.index[:10000]]
         data[start_time] = data[start_time].apply(lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))
         data[end_time] = data[end_time].apply(lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))
-        start = datetime(day=1, month=5, year=2021, hour=7)
+        start = datetime(day=np.random.randint(1, 30), month=5, year=2021, hour=7)
         for i in tqdm(range(15+j,16+j)):
             if start.weekday() in [0, 6]:
                 run_test(data, name='capital', interval=10, begin_interval=start, end_interval=start + timedelta(hours=12),
