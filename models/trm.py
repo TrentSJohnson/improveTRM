@@ -68,7 +68,9 @@ class TRM:
         # print('spw',spwgraph.edges)
         matching2 = bipartite.matching.minimum_weight_full_matching(spwgraph)
         # print(matching2)
-        return self.matching_to_graph(matching2, cwgraph), self.matching_score(matching2, cwgraph)
+        self.graph = self.matching_to_graph(matching2, cwgraph)
+        self.score = self.matching_score(matching2, self.graph)
+        return self.graph, self.score
 
     def test(self, cwgraph):
         cgraph = nx.Graph()
@@ -86,3 +88,6 @@ class TRM:
         # print(len(worker))
 
         return self.solve(cgraph, cwgraph, worker)
+    
+    def get_results(self):
+        return self.graph, self.score

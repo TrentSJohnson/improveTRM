@@ -7,7 +7,7 @@ from models.hs import TRM_RLS, RLS
 from models.local_ratio import Local_Ratio
 from models.trm import TRM
 from models.uga import UGA_RLS
-
+from models.muscle import Graph3Opt
 
 class Testing:
     def test_(self, algorithms, data, interval, epsilon, radius, begin_interval, end_interval):
@@ -79,11 +79,11 @@ class Testing:
 
 def run_test(data, name='citi', interval=1, begin_interval=None, end_interval=None, trial='', epsilon=.2):
     testing = Testing()
-    scores, runtimes, times, graphs, sdists = testing.test([TRM(), Local_Ratio(), RLS(), UGA_RLS(), TRM_RLS()],
+    scores, runtimes, times, graphs, sdists = testing.test([TRM(),  RLS(), Graph3Opt(), TRM_RLS()],
                                                            data, interval=interval, epsilon=epsilon,
                                                            begin_interval=begin_interval, end_interval=end_interval)
 
-    cols = ['TRM', 'Local_Ratio', 'RLS', 'UGA_RLS', 'TRHS']
+    cols = ['TRM', 'RLS', 'Graph3Opt', 'TRHS']
     scores_df = pd.DataFrame(np.abs(scores),
                              columns=cols)
     runtimes_df = pd.DataFrame(np.abs(runtimes),

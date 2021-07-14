@@ -15,7 +15,7 @@ start_lat = 'start_lat'
 start_lng = 'start_lng'
 end_lat = 'end_lat'
 end_lng = 'end_lng'
-
+types = ['worker','overflow','underflow']
 
 def find_closest_overflow(w, u, cwgraph, stations):
     best = float('inf')
@@ -149,6 +149,27 @@ def scorer2(graph, cwgraph):
             cwgraph.nodes[w]['xs'], cwgraph.nodes[w]['ys'], cwgraph.nodes[o]['x'], cwgraph.nodes[o]['y'])
     return c
 
+def partial_scorer(graph, cwgraph):
+    worker = [node for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'worker']
+    c = 0
+    for w in worker:
+        neighbors = list(graph.neighbors(w))
+        if len(neighbors)==2:
+            s1, s2 = graph.neighbors(w)
+            u = s1 if cwgraph.nodes[s1]['type'] == 'underflow' else s2
+            o = s2 if u == s1 else s1
+            c += euc_dis(cwgraph.nodes[o]['x'], cwgraph.nodes[o]['y'], cwgraph.nodes[u]['x'],
+                        cwgraph.nodes[u]['y']) + euc_dis(cwgraph.nodes[w]['xe'], cwgraph.nodes[w]['ye'],
+                                                        cwgraph.nodes[u]['x'], cwgraph.nodes[u]['y']) + euc_dis(
+                cwgraph.nodes[w]['xs'], cwgraph.nodes[w]['ys'], cwgraph.nodes[o]['x'], cwgraph.nodes[o]['y'])
+        elif len(neighbors) == 1 and cwgraph.nodes[neighbors[0]['type']] == 'underflow':
+            u = neighbors[0]
+            c += euc_dis(cwgraph.nodes[w]['xe'], cwgraph.nodes[w]['ye'], cwgraph.nodes[u]['x'], cwgraph.nodes[u]['y']) 
+        elif len(neighbors) == 1 and cwgraph.nodes[neighbors[0]['type']] == 'overflow':
+            o = neighbors[0]
+            c += euc_dis(cwgraph.nodes[w]['xs'], cwgraph.nodes[w]['ys'], cwgraph.nodes[o]['x'], cwgraph.nodes[o]['y'])
+
+        return c
 
 def complete_graph(graph, cwgraph):
     c = 0
