@@ -77,11 +77,11 @@ class Testing:
 
 def run_test(data, name='citi', interval=1, begin_interval=None, end_interval=None, trial='', ratios=[1.0]):
     testing = Testing()
-    scores, runtimes, times, graphs, sdists = testing.test([TRM(),  RLS(),  TRM_RLS()],
+    scores, runtimes, times, graphs, sdists = testing.test([TRM(),  RLS(),  TRM_RLS(), GHS(), Local_Ratio()],
                                                            data, interval=interval, ratios=ratios,
                                                            begin_interval=begin_interval, end_interval=end_interval)
 
-    cols = ['TRM', 'RLS',  'TRHS']
+    cols = ['TRM', 'RLS',  'TRHS','GHS','LR']
     scores_df = pd.DataFrame(np.abs(scores),
                              columns=cols, index=ratios)
     runtimes_df = pd.DataFrame(np.abs(runtimes),
@@ -157,7 +157,8 @@ if __name__ == '__main__':
     num_trials_per = 1
 
     #run tests
-    for trial_id in tqdm(range(1, 30, num_trials_per)):
+    start_id = 0
+    for trial_id in tqdm(range(start_id, start_id+30, num_trials_per)):
         start = datetime(day=np.random.randint(1, 30), month=5, year=2021, hour=7)
         for data, name in [(citi, 'citi'), (blue, 'blue'), (capit, 'capit')]:
             default_run_test(data, name, trial_id, start)
