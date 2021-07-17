@@ -27,7 +27,7 @@ class Testing:
         cwgraph_max = build_cwgraph(data, start_time_dt, start_time_dt + td, radius=radius, ratio=max(ratios))
         m=1
         tries = 0
-        while len(cwgraph_min.nodes) < 100 or len(cwgraph_max.nodes) > 400 and tries < 10:
+        while len(cwgraph_min.nodes) < 100 or len(cwgraph_max.nodes) > 500:
             tries += 1
             print('failed min:', len(cwgraph_min.nodes))
             print('failed max:', len(cwgraph_max.nodes))
@@ -35,6 +35,9 @@ class Testing:
             m *= 5/4 if len(cwgraph_min.nodes) < 100 else 3/4
             graph = cloned_station_vertices(build_station_graph(data, start_time_dt, start_time_dt + td))
             td = timedelta(minutes=m * interval)
+            cwgraph_min = build_cwgraph(data, start_time_dt, start_time_dt + td, radius=radius, ratio=min(ratios))
+            cwgraph_max = build_cwgraph(data, start_time_dt, start_time_dt + td, radius=radius, ratio=max(ratios))
+        
 
 
         results = []
