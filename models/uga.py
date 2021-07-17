@@ -47,7 +47,7 @@ class UGA:
         graph = nx.Graph()
 
         shuffle(self.workers)
-        for w in self.worker:
+        for w in self.workers:
             self.add_triplet(w, graph)
         graph.add_nodes_from([i for i in self.meta_graph.nodes if not i in list(graph.nodes)])
         return graph
@@ -64,7 +64,7 @@ class UGA:
             if self.underflow[node_ind] != vertex:
                 return self.underflow[node_ind]
 
-    def mutate(self, worker, to_replace, graph):
+    def mutate(self, workers, to_replace, graph):
         if self.meta_graph.nodes[to_replace]['type'] == 'overflow':
             other = self.find_overflow(to_replace)
         else:
@@ -74,8 +74,8 @@ class UGA:
 
             graph.add_edge(otherw, to_replace)
             graph.remove_edge(otherw, other)
-        graph.add_edge(worker, other)
-        graph.remove_edge(worker, to_replace)
+        graph.add_edge(workesr, other)
+        graph.remove_edge(workers, to_replace)
 
     def pick_edge(self, ref_station, edges):
         for edge in edges:
@@ -94,9 +94,9 @@ class UGA:
         temp[self.meta_graph.nodes[neighbors[1]]['type']] = self.meta_graph.nodes[neighbors[1]]
         underflow_data = temp['underflow']
         overflow_data = temp['overflow']
-        worker_data = self.meta_graph.nodes[gene]
-        return euc_dis(worker_data['xe'], worker_data['ye'], underflow_data['x'],
-                       underflow_data['y']) + euc_dis(worker_data['xs'], worker_data['ys'],
+        workers_data = self.meta_graph.nodes[gene]
+        return euc_dis(workers_data['xe'], workers_data['ye'], underflow_data['x'],
+                       underflow_data['y']) + euc_dis(workers_data['xs'], workers_data['ys'],
                                                       overflow_data['x'], overflow_data['y']) + euc_dis(
             underflow_data['x'], underflow_data['y'], overflow_data['x'], overflow_data['y'])
 
@@ -104,14 +104,14 @@ class UGA:
         return -sum([self.euc_fitness_ind(gene, spec) for gene in spec.nodes if
                      self.meta_graph.nodes[gene]['type'] == 'worker'])
 
-    def swap(self, worker, station, mate_station, spec):
+    def swap(self, workers, station, mate_station, spec):
         # print('worker',worker,'station',station,'mate_station',mate_station)
         # print('removed',worker,station)
-        spec.remove_edge(worker, station)
+        spec.remove_edge(workers, station)
         if len(list(spec.neighbors(mate_station))) > 0:
             unemployed = list(spec.neighbors(mate_station))[0]
             spec.remove_edge(unemployed, mate_station)
-            spec.add_edge(worker, mate_station)
+            spec.add_edge(workers, mate_station)
             pots = self.overflow if self.meta_graph.nodes[station]['type'] == 'overflow' else self.underflow
             shuffle(pots)
             for p in pots:
@@ -120,8 +120,8 @@ class UGA:
                     return
             print('NoStationFound')
         else:
-            spec.add_edge(worker, mate_station)
-            # print('added',worker,mate_station)
+            spec.add_edge(workers, mate_station)
+            # print('added',workers,mate_station)
 
     def run(self, sswap_rate, oswap_rate, gens, pop_size, spec_opt=None):
         # make a population
@@ -163,17 +163,17 @@ class UGA:
                         # print(edges.intersection(set(self.meta_graph.edges).intersection(set(spec.edges))))
                 for edge in spec.edges:
                     edge = list(edge)
-                    if edge[0] in self.worker:
-                        worker_, station_ = edge[0], edge[1]
+                    if edge[0] in self.workers:
+                        workers_, station_ = edge[0], edge[1]
                     else:
-                        worker_, station_ = edge[1], edge[0]
+                        workers_, station_ = edge[1], edge[0]
 
                     if np.random.random() < oswap_rate:
-                        mate_stations_ = list(pop[np.random.choice(list(range(len(pop))), p=scores)].neighbors(worker_))
+                        mate_stations_ = list(pop[np.random.choice(list(range(len(pop))), p=scores)].neighbors(workers_))
                         mate_station_ = mate_stations_[0] if self.meta_graph.nodes[mate_stations_[0]]['type'] == \
                                                              self.meta_graph.nodes[station_]['type'] else \
                             mate_stations_[1]
-                        self.swap(worker_, station_, mate_station_, spec)
+                        self.swap(workers_, station_, mate_station_, spec)
 
                 selected.append(spec)
             if gen != gens-1:
