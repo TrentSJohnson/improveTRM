@@ -55,11 +55,11 @@ class Local_Ratio:
 
 
     def solve(self, cwgraph):
-        worker = {node: {} for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'worker'}
+        workers = {node: {} for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'worker'}
         overflow = {node: {} for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'overflow'}
         underflow = {node: {} for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'underflow'}
         # define arrangements
-        possible_edges = [(w, o, u) for w in worker for o in overflow for u in underflow]
+        possible_edges = [(w, o, u) for w in workers for o in overflow for u in underflow]
 
         # make problem
         wap_model = pulp.LpProblem("WAP_Model", pulp.LpMaximize)

@@ -16,7 +16,7 @@ class LP:
 
     def build_lists(self, meta_graph):
         overflow = [node for node in meta_graph.nodes() if meta_graph.nodes[node]['type'] == 'overflow']
-        worker = [node for node in meta_graph.nodes() if meta_graph.nodes[node]['type'] == 'worker']
+        workers = [node for node in meta_graph.nodes() if meta_graph.nodes[node]['type'] == 'worker']
         underflow = [node for node in meta_graph.nodes() if meta_graph.nodes[node]['type'] == 'underflow']
         return worker, overflow, underflow
 
@@ -39,7 +39,7 @@ class LP:
         wap_model += pulp.lpSum([x[edge] * self.edge_cost(edge, cwgraph) for edge in possible_edges])
 
         # contrain weights to sum to 1
-        for vertex in list(worker):
+        for vertex in list(workers):
             wap_model += (
                 pulp.lpSum([x[edge] for edge in possible_edges if vertex in edge]) == 1,
                 "assignment_bound_%s" % str(vertex),

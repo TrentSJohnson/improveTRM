@@ -3,28 +3,17 @@ from random import shuffle
 import networkx as nx
 from networkx.algorithms import bipartite
 
+from graphprocessing import edge_cost
 from models.trm import TRM
 
 
 class HS:
-    def get_weight(self, graph, node1, node2, constrain_type, cwgraph):
-        nodes = node1.split('|') + [node2]
-        overflow = [node for node in nodes if node in list(cwgraph) and cwgraph.nodes[node]['type'] == 'overflow'][0]
-        underflow = [node for node in nodes if node in list(cwgraph) and cwgraph.nodes[node]['type'] == 'underflow'][0]
-        worker = list(set(nodes) - {overflow, underflow})[0]
-        return self.euc_dis(cwgraph.nodes[underflow]['x'], cwgraph.nodes[underflow]['y'], cwgraph.nodes[worker]['xe'],
-                            cwgraph.nodes[worker]['ye']) + self.euc_dis(cwgraph.nodes[overflow]['x'],
-                                                                        cwgraph.nodes[overflow]['y'],
-                                                                        cwgraph.nodes[underflow]['x'],
-                                                                        cwgraph.nodes[underflow]['y']) + self.euc_dis(
-            cwgraph.nodes[overflow]['x'], cwgraph.nodes[overflow]['y'], cwgraph.nodes[worker]['xs'],
-            cwgraph.nodes[worker]['ys'])
 
     def get_type(self, cwgraph):
         overflow = [node for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'overflow']
         underflow = [node for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'underflow']
-        worker = [str(node) for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'worker']
-        return worker, overflow, underflow
+        workers = [str(node) for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'worker']
+        return workers, overflow, underflow
 
     def constrain_graph(self, graph, constrain_type, cwgraph):
         # print(constrain_type)
@@ -69,7 +58,7 @@ class HS:
         for node1 in str_nodes:
             for node2 in solo_nodes:
                 if not fixed.has_edge(node1, node2):
-                    fixed.add_edge(node1, node2, weight=self.get_weight(graph, node1, node2, constrain_type, cwgraph))
+                    fixed.add_edge(node1, node2, weight=edge_cost(*node1.split('|'), node2, cwgraph))
         # print('edges out', len(fixed.edges))
         # draw_bipartite(fixed)
 
@@ -89,37 +78,17 @@ class HS:
     def euc_dis(self, x1, y1, x2, y2):
         return ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** .5
 
-    def euc_tri(self, worker, underflow, overflow, graph):
-        worker_data = graph.nodes[worker]
-        underflow_data = graph.nodes[underflow]
-        overflow_data = graph.nodes[overflow]
-        return self.euc_dis(worker_data['xe'], worker_data['ye'], underflow_data['x'],
-                            underflow_data['y']) + self.euc_dis(worker_data['xs'], worker_data['ys'],
-                                                                overflow_data['x'], overflow_data['y']) + self.euc_dis(
-            underflow_data['x'], underflow_data['y'], overflow_data['x'], overflow_data['y'])
-
     def matching_score(self, matching, graph):
-        triplets = []
         finished = set()
-        temp = {}
+        w = 0
         for v in matching.nodes:
             if not (v in finished):
-                temp = {}
                 neighbors = list(matching.neighbors(v))
-
+                w += edge_cost(v, *neighbors, graph)
                 finished = finished.union({v}).union(set(neighbors))
-
-                temp[graph.nodes[v]['type']] = v
-                temp[graph.nodes[neighbors[0]]['type']] = neighbors[0]
-                temp[graph.nodes[neighbors[1]]['type']] = neighbors[1]
-                triplets.append(temp)
-        w = 0
-
-        for i in triplets:
-            w += self.euc_tri(i['worker'], i['underflow'], i['overflow'], graph)
         return w
 
-    def search(self, graph, cwgraph, max_rounds=float('inf'),threshold=0):
+    def search(self, graph, cwgraph, max_rounds=float('inf'), threshold=0):
         best_score = float('inf')
         best_matching = None
         stalled_rounds = 0
@@ -132,10 +101,8 @@ class HS:
                 graph = self.update_graph(matching)
             score = self.matching_score(graph, cwgraph)
             i += 1
-            # print(i)
             if score < best_score:
                 if best_score - score > threshold:
-                    #print(best_score-score)
                     stalled_rounds = 0
                 best_score = score
                 best_matching = graph
@@ -149,16 +116,16 @@ class RLS:
     def make_graph(self, cwgraph):
         overflow = [node for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'overflow']
         underflow = [node for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'underflow']
-        worker = [str(node) for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'worker']
+        workers = [str(node) for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'worker']
         shuffle(overflow)
         shuffle(underflow)
-        shuffle(worker)
-        full = min([len(overflow), len(underflow), len(worker)])
+        shuffle(workers)
+        full = min([len(overflow), len(underflow), len(workers)])
         overflow = overflow[:full]
         underflow = underflow[:full]
-        worker = worker[:full]
+        workers = workers[:full]
 
-        wou_triplets = [(w, o, u) for w, o, u in zip(worker, overflow, underflow)]
+        wou_triplets = [(w, o, u) for w, o, u in zip(workers, overflow, underflow)]
         graph = nx.Graph()
 
         for w, o, u in wou_triplets:
@@ -189,4 +156,3 @@ class RLSL(RLS):
         graph = self.make_graph(cwgraph)
         hs = HS()
         return hs.search(graph, cwgraph, max_rounds=2)
-

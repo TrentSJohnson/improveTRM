@@ -20,7 +20,7 @@ class UGA:
 
     def build_lists(self):
         self.overflow = [node for node in self.meta_graph.nodes() if self.meta_graph.nodes[node]['type'] == 'overflow']
-        self.worker = [node for node in self.meta_graph.nodes() if self.meta_graph.nodes[node]['type'] == 'worker']
+        self.workers = [node for node in self.meta_graph.nodes() if self.meta_graph.nodes[node]['type'] == 'worker']
         self.underflow = [node for node in self.meta_graph.nodes() if
                           self.meta_graph.nodes[node]['type'] == 'underflow']
 
@@ -42,11 +42,11 @@ class UGA:
             graph.add_edge(vertex, underflow)
             graph.add_edge(vertex, overflow)
 
-    # each species is a complete of worker station triples
+    # each species is a complete of workers station triples
     def build_matching(self):
         graph = nx.Graph()
 
-        shuffle(self.worker)
+        shuffle(self.workers)
         for w in self.worker:
             self.add_triplet(w, graph)
         graph.add_nodes_from([i for i in self.meta_graph.nodes if not i in list(graph.nodes)])

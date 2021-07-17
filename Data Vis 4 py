@@ -1,0 +1,193 @@
+# To add a new cell, type '# %%'
+# To add a new markdown cell, type '# %% [markdown]'
+# %%
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import os
+from matplotlib import rc
+
+
+# %%
+
+def get_data_list(metric,day,data_source,data_df):
+    directory = 'outputs'
+    for f in os.listdir(directory):
+        if metric in f and day in f and data_source in f:
+            df = pd.read_csv(directory+'/'+f,index_col=0)
+            
+            df = pd.DataFrame(np.abs(df.values),columns=df.columns if len(df.columns)>2 else [metric])
+            if len(df.columns)<2 and 'TRM' in df.columns:
+                print('error')
+            graph_n = f.replace(metric+'_'+day,'').replace(data_source+'.csv','')
+            if graph_n in data_df[data_df.source == data_source].graph.values:
+                start_ind = list((data_df.source == data_source) & (data_df.graph == graph_n)).index(True)
+                if df.shape[1]>1:
+                    for i in range(df.shape[1]):
+                        for j in range(df.shape[0]):
+                            data_df.iloc[start_ind+j,i+int(metric=='runtimes')*df.shape[1]] = df.iloc[j,i]
+                else:
+                    for j in range(df.shape[0]):
+                        data_df.iloc[start_ind+j,list(data_df.columns).index(metric)] = df.iloc[j,0]
+            else:
+                df['graph'] = [graph_n]*df.shape[0]
+                df['source'] = [data_source]*df.shape[0]
+                df['ratios'] = df.index
+                df['day'] = [day]*df.shape[0]
+                if df.shape[1]>6:
+                    
+                    df.columns = [col for col in data_df.columns if metric in col]+['graph','source','day']
+                    for col in data_df.columns:
+                        if not (col in df.columns):
+                            df[col] = [np.nan]*df.shape[1]
+                data_df = data_df.append(df,ignore_index=True)
+    return data_df
+
+
+# %%
+sources = ['citi','capital','blue']
+#score_cols = ['TRM_scores','Local Ratio_scores', 'HS_scores', 'GHS_scores', 'IHS_scores']
+#rt_cols = ['TRM_runtimes','Local Ratio_runtimes', 'HS_runtimes',  'GHS_runtimes', 'IHS_runtimes']
+score_cols = ['TRM_scores', 'HS_scores', 'IHS_scores']
+rt_cols = ['TRM_runtimes', 'HS_runtimes', 'IHS_runtimes']
+
+
+df = pd.DataFrame(columns=score_cols+ rt_cols+['graph','graphs','sdists','source','ratios'],)
+for metric in ['sdists','graphs','runtimes','scores']:
+    for day in ['weekend','weekday']:
+        for source in sources:
+            df=get_data_list(metric,day,source,df)
+for col in score_cols+rt_cols:
+    df[col]=pd.to_numeric(df[col])
+df
+
+
+# %%
+def get_det_group(source,day):
+    capit_we = df.loc[(df.source==source) & (df.day==day),:].copy()
+    df_temp = pd.DataFrame()
+    det_cols = []
+    for c in score_cols:
+        det_col = c.split('_')[0]+'_det'
+        det_cols.append(det_col)
+        df_temp[det_col] = pd.to_numeric(arg=(capit_we[c].values-capit_we['sdists'].values)/capit_we['sdists'].values)
+    df_temp['ratios'] = capit_we.ratios.values
+    return df_temp, det_cols
+
+
+# %%
+font = {'size'   : 22}
+plt.style.use('seaborn-whitegrid')
+rc('font', **{'family': 'serif', 'serif': ['Computer Modern']})
+colors = ['#a6611a', '#dfc27d', '#80cdc1', '#018571','#FF00FF']
+color = 0
+for source in sources:
+    for day in ['weekday','weekend']:
+        plt.style.use('seaborn-whitegrid')
+        temp_df, det_cols = get_det_group(source,day)
+        group = temp_df.groupby('ratios')
+        fig, ax = plt.subplots()
+    
+
+        for c in det_cols: 
+            ax.errorbar(group.groups.keys(), group[c].mean(), yerr=group[c].std(),label=c.split('_')[0],fmt='o',c=colors[color],ms=10,capsize=10,capthick=3,elinewidth=3)
+            color +=1
+        color = 0
+        plt.title(source.capitalize() +' Detour on '+day.capitalize()+'s',**font)
+        plt.legend()
+        ax.set_ylabel('Increase in percent distance',**font)
+        ax.set_xlabel('ratios',**font)
+        fig.set_size_inches(10, 10)
+        
+        fig.tight_layout()
+        fig.savefig('figures/'+source+'_'+day+'scores15')
+        plt.show()
+        
+for source in sources:
+    for day in ['weekday','weekend']:
+        plt.style.use('seaborn-whitegrid')
+        fig, ax = plt.subplots()
+        group = df.loc[(df.source == source) & (df.day==day)].groupby('ratios')
+        for c in rt_cols: 
+            ax.errorbar(group.groups.keys(), group[c].mean(), yerr=group[c].std(),label=c.split('_')[0],fmt='o',c=colors[color],ms=10,capsize=10,capthick=3,elinewidth=3)
+            color +=1
+        color = 0
+        plt.title(source.capitalize()+' Detour on '+day.capitalize()+'s',**font)
+        ax.set_ylabel('Runtime',**font)
+        ax.set_xlabel('ratios',**font)
+        fig.set_size_inches(10, 10)
+        fig.tight_layout()
+        plt.legend()
+        fig.savefig('figures/'+source+'_'+day+'rt15')
+        plt.show()
+
+
+# %%
+day='weekday'
+latex,det_cols = get_det_group(sources[0],day)
+latex = latex.groupby('ratios').mean()
+if len(sources)>1:
+    for source in sources[1:]:
+        latex.append(df.loc[(df.source == source) & (df.day==day),score_cols+['ratios']].groupby('ratios').mean().astype(int))
+
+for source in sources:
+    latex.append(df.loc[(df.source == source) & (df.day==day),score_cols+['ratios']].groupby('ratios').mean().astype(int))
+
+
+# %%
+temp_agg = pd.DataFrame()
+
+for source in sources:
+    temp_=pd.DataFrame(columns=['TRMciti',  'Local Ratiociti', 'HSciti', 'GHSciti','IHSciti', 'TRMcapital' ,
+                            'Local Ratiocapital' ,  'HScapital' ,  'GHScapital' ,  'IHScapital' ,  'TRMblue',
+                            'Local Ratioblue' ,  'HSblue' ,  'GHSblue' ,  'IHSblue' ])
+    for day in ['weekend','weekday']:
+        temp = get_det_group(source,day)[0].groupby('ratios').mean()
+        temp.index = [str(i)+' '+day.capitalize() for i in temp.index]
+        temp.columns = [c.split('_')[0]+source for c in temp.columns]
+        temp_=temp_.append(temp)
+    for c in temp.columns:
+        temp_agg[c]=np.round(temp_[c].values,2)
+
+temp_agg.index = ([1,.8,.6,.4,.2]+[1,.8,.6,.4,.2])[::-1]
+for i in range(len(temp_agg.index)):
+    for j in [0,5,10]:
+        temp_agg.iloc[i,j+np.argmin(temp_agg.iloc[i,range(j,j+5)].values)] = '\\textbf{'+str(temp_agg.iloc[i,j+np.argmin(temp_agg.iloc[i,range(j,j+5)].values)])+'}'
+
+latex = temp_agg.to_latex()
+latex = latex.replace('\\textbackslash textbf\\{','\\textbf{').replace('\\}','}')
+print(latex)
+
+
+# %%
+
+temp_agg = pd.DataFrame()
+
+for source in sources:
+    temp_=pd.DataFrame(columns=['TRMciti',  'Local Ratiociti', 'HSciti', 'GHSciti','IHSciti', 'TRMcapital' ,
+                            'Local Ratiocapital' ,  'HScapital' ,  'GHScapital' ,  'IHScapital' ,  'TRMblue',
+                            'Local Ratioblue' ,  'HSblue' ,  'GHSblue' ,  'IHSblue' ])
+    for day in ['weekend','weekday']:
+        temp = df.loc[(df.source == source) & (df.day==day),['ratios']+rt_cols].groupby('ratios').mean()
+        temp.index = [str(i)+' '+day.capitalize() for i in temp.index]
+        temp.columns = [c.split('_')[0]+source for c in temp.columns]
+        temp_=temp_.append(temp)
+    for c in temp.columns:
+        temp_agg[c]=np.round(temp_[c].values,2)
+
+temp_agg.index = [1,.8,.6,.4,.2]+[1,.8,.6,.4,.2]
+print(temp_agg)
+for i in range(len(temp_agg.index)):
+    for j in [0,5,10]:
+        print(temp_agg.iloc[i,range(j,j+5)].values)
+        temp_agg.iloc[i,j+np.argmin(temp_agg.iloc[i,range(j,j+5)].values)] = '\\textbf{'+str(temp_agg.iloc[i,j+np.argmin(temp_agg.iloc[i,range(j,j+5)].values)])+'}'
+
+latex = temp_agg.to_latex()
+latex = latex.replace('\\textbackslash textbf\\{','\\textbf{').replace('\\}','}')
+print(latex)
+
+
+# %%
+
+
+

@@ -1,6 +1,8 @@
 import networkx as nx
 from networkx.algorithms import bipartite
 
+from graphprocessing import edge_cost
+
 
 class TRM:
     def euc_tri(self, worker, underflow, overflow, graph):
@@ -12,7 +14,7 @@ class TRM:
                                                                 overflow_data['x'], overflow_data['y']) + self.euc_dis(
             underflow_data['x'], underflow_data['y'], overflow_data['x'], overflow_data['y'])
 
-    def matching_to_triplets(self, matching, graph):
+    def matching_to_triplets(self, matching, cwgraph):
         triplets = []
         finished = []
         for u1 in matching.keys():
@@ -22,39 +24,40 @@ class TRM:
                 u1, u3 = u1.split('|')
 
                 if not (u1 in finished):
-                    temp[graph.nodes[u1]['type']] = u1
-                    temp[graph.nodes[u2]['type']] = u2
-                    temp[graph.nodes[u3]['type']] = u3
+                    temp[cwgraph.nodes[u1]['type']] = u1
+                    temp[cwgraph.nodes[u2]['type']] = u2
+                    temp[cwgraph.nodes[u3]['type']] = u3
                     triplets.append(temp)
                     finished += [u1, u2, u3]
         return triplets
 
-    def matching_score(self, matching, graph):
-        triplets = self.matching_to_triplets(matching, graph)
+    def matching_score(self, matching, cwgraph):
+        triplets = self.matching_to_triplets(matching, cwgraph)
         w = 0
         for i in triplets:
-            w += self.euc_tri(i['worker'], i['underflow'], i['overflow'], graph)
+            w += edge_cost(*i.values(), cwgraph)
         return w
 
     def euc_dis(self, x1, y1, x2, y2):
         return ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** .5
 
-    def matching_to_graph(self, matching, graph):
+    def matching_to_graph(self, matching, cwgraph):
         new_graph = nx.Graph()
-        triplets = self.matching_to_triplets(matching, graph)
+        triplets = self.matching_to_triplets(matching, cwgraph)
         for triplet in triplets:
             v = triplet.values()
             new_graph.add_nodes_from(v)
             new_graph.add_edges_from([(v1, v2) for v1 in v for v2 in v if v1 != v2])
         return new_graph
 
-    def solve(self, cgraph, cwgraph, worker):
+    def solve(self, cgraph, cwgraph):
+        workers = [node for node in cwgraph.nodes if cwgraph.nodes[node]['type']=='worker']
         matching = bipartite.matching.minimum_weight_full_matching(cgraph)
         spwgraph = nx.Graph()
         for key in matching.keys():
             if cgraph.nodes[key]['type'] == 'overflow':
                 # print('is overflow')
-                for w, worker_ in enumerate(worker):
+                for w, worker_ in enumerate(workers):
                     spwgraph.add_edge((key + '|' + matching[key]), worker_,
                                       weight=self.euc_dis(cwgraph.nodes[key]['x'], cwgraph.nodes[key]['y'],
                                                           cgraph.nodes[matching[key]]['x'],
@@ -69,7 +72,7 @@ class TRM:
         matching2 = bipartite.matching.minimum_weight_full_matching(spwgraph)
         # print(matching2)
         self.graph = self.matching_to_graph(matching2, cwgraph)
-        self.score = self.matching_score(matching2, self.graph)
+        self.score = self.matching_score(matching2, cwgraph)
         return self.graph, self.score
 
     def test(self, cwgraph):
@@ -77,17 +80,17 @@ class TRM:
         cgraph.add_nodes_from([node for node in cwgraph.nodes if cwgraph.nodes[node]['type'] != 'worker'])
         nx.set_node_attributes(cgraph, {i: cwgraph.nodes[i] for i in cgraph.nodes})
 
-        worker = list(set(cwgraph.nodes) - set(cgraph.nodes))
+        workers = list(set(cwgraph.nodes) - set(cgraph.nodes))
         for edge in cwgraph.edges:
             if cgraph.has_node(edge[0]) and cgraph.has_node(edge[1]):
                 cgraph.add_edge(edge[0], edge[1],
                                 weight=self.euc_dis(cwgraph.nodes[edge[0]]['x'], cwgraph.nodes[edge[0]]['y'],
                                                     cwgraph.nodes[edge[1]]['x'], cwgraph.nodes[edge[1]]['y']))
         # print('nodedata',cgraph.nodes[list(cgraph.nodes)[0]])
-        # worker = [node for node in cwgraph.nodes if cwgraph.nodes[node]['type']=='worker']
-        # print(len(worker))
+        # workers = [node for node in cwgraph.nodes if cwgraph.nodes[node]['type']=='worker']
+        # print(len(workers))
 
-        return self.solve(cgraph, cwgraph, worker)
-    
-    def get_results(self):
+        return self.solve(cgraph, cwgraph)
+
+    def get_result(self):
         return self.graph, self.score
