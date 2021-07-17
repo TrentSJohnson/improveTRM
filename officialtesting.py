@@ -77,7 +77,7 @@ class Testing:
 
 def run_test(data, name='citi', interval=1, begin_interval=None, end_interval=None, trial='', ratios=[1.0]):
     testing = Testing()
-    scores, runtimes, times, graphs, sdists = testing.test([TRM(),  RLS(),  TRM_RLS(), GHS(), Local_Ratio()],
+    scores, runtimes, times, graphs, sdists = testing.test([TRM(),  RLS(),  TRM_RLS(), UGA_RLS(), Local_Ratio()],
                                                            data, interval=interval, ratios=ratios,
                                                            begin_interval=begin_interval, end_interval=end_interval)
 
