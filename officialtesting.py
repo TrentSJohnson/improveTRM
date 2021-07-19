@@ -27,7 +27,7 @@ class Testing:
         cwgraph_max = build_cwgraph(data, start_time_dt, start_time_dt + td, radius=radius, ratio=max(ratios))
         m=1
         tries = 0
-        while len(cwgraph_min.nodes) < 100 or len(cwgraph_max.nodes) > 500:
+        while len(cwgraph_min.nodes) < 50 or len(cwgraph_max.nodes) > 300:
             tries += 1
             print('failed min:', len(cwgraph_min.nodes))
             print('failed max:', len(cwgraph_max.nodes))
