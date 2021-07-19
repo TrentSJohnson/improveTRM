@@ -46,75 +46,51 @@ def edge2_cost(n1,n2,cwgraph):
         return euc_dis(cwgraph.nodes[o]['x'], cwgraph.nodes[o]['y'], cwgraph.nodes[u]['x'], cwgraph.nodes[u]['y'])
     return euc_dis(cwgraph.nodes[w]['xe'], cwgraph.nodes[w]['ye'], cwgraph.nodes[u]['x'], 
     cwgraph.nodes[u]['y']) 
-                     
-
-def find_closest_overflow(w, u, cwgraph, stations):
-    best = float('inf')
-    besto = None
-    for o in stations:
-        temp = euc_dis(cwgraph.nodes[o]['x'], cwgraph.nodes[o]['y'], cwgraph.nodes[u]['x'],
-                       cwgraph.nodes[u]['y']) + euc_dis(cwgraph.nodes[w]['xe'], cwgraph.nodes[w]['ye'],
-                                                        cwgraph.nodes[u]['x'],
-                                                        cwgraph.nodes[u]['y']) + euc_dis(
-            cwgraph.nodes[w]['xs'], cwgraph.nodes[w]['ys'], cwgraph.nodes[o]['x'],
-            cwgraph.nodes[o]['y'])
-        if temp < best:
-            besto = o
-            best = temp
-    return besto
-
-
-def find_closest_underflow(w, o, cwgraph, stations):
-    best = float('inf')
-    bestu = None
-    for u in stations:
-        temp = euc_dis(cwgraph.nodes[o]['x'], cwgraph.nodes[o]['y'], cwgraph.nodes[u]['x'],
-                       cwgraph.nodes[u]['y']) + euc_dis(cwgraph.nodes[w]['xe'], cwgraph.nodes[w]['ye'],
-                                                        cwgraph.nodes[u]['x'],
-                                                        cwgraph.nodes[u]['y']) + euc_dis(
-            cwgraph.nodes[w]['xs'], cwgraph.nodes[w]['ys'], cwgraph.nodes[o]['x'],
-            cwgraph.nodes[o]['y'])
-        if temp < best:
-            bestu = u
-            best = temp
-    return bestu
 
 
 def find_opt_end(w, o, us, cwgraph):
+    """
+    Finds the optimal end station for a worker
+    Args:
+        w: str 
+            worker node
+        o: str
+            overflow node
+        us: list
+            list of underflow nodes
+        cwgraph: Graph
+            complete data graph
+    Returns: str    
+        the optimal end node
+    """    
     if len(us) == 1:
         return us[0]
-    dis = euc_dis(cwgraph.nodes[o]['x'], cwgraph.nodes[o]['y'], cwgraph.nodes[us[0]]['x'],
-                  cwgraph.nodes[us[0]]['y']) + euc_dis(cwgraph.nodes[w]['xe'], cwgraph.nodes[w]['ye'],
-                                                       cwgraph.nodes[us[0]]['x'],
-                                                       cwgraph.nodes[us[0]]['y']) + euc_dis(
-        cwgraph.nodes[w]['xs'], cwgraph.nodes[w]['ys'], cwgraph.nodes[o]['x'],
-        cwgraph.nodes[o]['y'])
+    dis = edge_cost(us[0], o, w, cwgraph)
     recu = find_opt_end(w, o, us[1:], cwgraph)
-    recdis = euc_dis(cwgraph.nodes[o]['x'], cwgraph.nodes[o]['y'], cwgraph.nodes[recu]['x'],
-                     cwgraph.nodes[recu]['y']) + euc_dis(cwgraph.nodes[w]['xe'], cwgraph.nodes[w]['ye'],
-                                                         cwgraph.nodes[recu]['x'],
-                                                         cwgraph.nodes[recu]['y']) + euc_dis(
-        cwgraph.nodes[w]['xs'], cwgraph.nodes[w]['ys'], cwgraph.nodes[o]['x'],
-        cwgraph.nodes[o]['y'])
+    recdis = edge_cost(recu, o, w, cwgraph)
     return us[0] if recdis > dis else recu
 
 
 def find_opt_start(w, u, os, cwgraph):
+    """
+    Finds the optimal start station for a worker
+    Args:
+        w: str 
+            worker node
+        u: str
+            underflow node
+        os: list
+            list of overflow nodes
+        cwgraph: Graph
+            complete data graph
+    Returns: str
+        the optimal start node
+    """
     if len(os) == 1:
         return os[0]
-    dis = euc_dis(cwgraph.nodes[u]['x'], cwgraph.nodes[u]['y'], cwgraph.nodes[os[0]]['x'],
-                  cwgraph.nodes[os[0]]['y']) + euc_dis(cwgraph.nodes[w]['xs'], cwgraph.nodes[w]['ys'],
-                                                       cwgraph.nodes[os[0]]['x'],
-                                                       cwgraph.nodes[os[0]]['y']) + euc_dis(
-        cwgraph.nodes[w]['xe'], cwgraph.nodes[w]['ye'], cwgraph.nodes[u]['x'],
-        cwgraph.nodes[u]['y'])
-    reco = find_opt_end(w, u, os[1:], cwgraph)
-    recdis = euc_dis(cwgraph.nodes[u]['x'], cwgraph.nodes[u]['y'], cwgraph.nodes[reco]['x'],
-                     cwgraph.nodes[reco]['y']) + euc_dis(cwgraph.nodes[w]['xs'], cwgraph.nodes[w]['ys'],
-                                                         cwgraph.nodes[reco]['x'],
-                                                         cwgraph.nodes[reco]['y']) + euc_dis(
-        cwgraph.nodes[w]['xe'], cwgraph.nodes[w]['ye'], cwgraph.nodes[u]['x'],
-        cwgraph.nodes[u]['y'])
+    dis = edge_cost(os[0], u, w, cwgraph)
+    reco = find_opt_start(w, u, os[1:], cwgraph)
+    recdis = edge_cost(reco, u, w, cwgraph)
     return os[0] if recdis > dis else reco
 
 
@@ -122,46 +98,11 @@ def find_opt_stations(w, os, us, cwgraph):
     if len(os) == 1:
         return os[0], find_opt_end(w, os[0], us, cwgraph)
     u = find_opt_end(w, os[0], us, cwgraph)
-    dis = euc_dis(cwgraph.nodes[u]['x'], cwgraph.nodes[u]['y'], cwgraph.nodes[os[0]]['x'],
-                  cwgraph.nodes[os[0]]['y']) + euc_dis(cwgraph.nodes[w]['xs'], cwgraph.nodes[w]['ys'],
-                                                       cwgraph.nodes[os[0]]['x'],
-                                                       cwgraph.nodes[os[0]]['y']) + euc_dis(
-        cwgraph.nodes[w]['xe'], cwgraph.nodes[w]['ye'], cwgraph.nodes[u]['x'],
-        cwgraph.nodes[u]['y'])
-    v = find_opt_stations(w, os[1:], us, cwgraph)
-    if len(v)!=2:
-        print(v)
-    reco, recu = v[0],v[1]
-    recdis = euc_dis(cwgraph.nodes[recu]['x'], cwgraph.nodes[recu]['y'], cwgraph.nodes[reco]['x'],
-                     cwgraph.nodes[reco]['y']) + euc_dis(cwgraph.nodes[w]['xs'], cwgraph.nodes[w]['ys'],
-                                                         cwgraph.nodes[reco]['x'],
-                                                         cwgraph.nodes[reco]['y']) + euc_dis(
-        cwgraph.nodes[w]['xe'], cwgraph.nodes[w]['ye'], cwgraph.nodes[recu]['x'],
-        cwgraph.nodes[recu]['y'])
+    dis = edge_cost(w, os[0], u, cwgraph)
+    reco, recu = find_opt_stations(w, os[1:], us, cwgraph)
+    recdis = edge_cost(reco, recu, w, cwgraph)
     return (os[0], u) if recdis > dis else (reco, recu)
 
-
-def find_closest_end(u, cwgraph, sources):
-    best = float('inf')
-    bestw = None
-    for w in sources:
-        temp = euc_dis(cwgraph.nodes[w]['xe'], cwgraph.nodes[w]['ye'], cwgraph.nodes[u]['x'], cwgraph.nodes[u]['y'])
-        if temp < best:
-            bestw = w
-            best = temp
-    return bestw
-
-
-def find_closest_start(o, cwgraph, sources):
-    best = float('inf')
-    bestw = None
-    for w in sources:
-        temp = euc_dis(cwgraph.nodes[w]['xs'], cwgraph.nodes[w]['ys'], cwgraph.nodes[o]['x'], cwgraph.nodes[o]['y'])
-
-        if temp < best:
-            bestw = w
-            best = temp
-    return bestw
 
 
 def scorer2(graph, cwgraph):
@@ -204,10 +145,13 @@ def complete_graph(graph, cwgraph):
     overflows = [node for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'overflow']
     workers = [node for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'worker']
     underflows = [node for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'underflow']
+    overflows_w = [node for node in overflows if len(list(cwgraph.neighbors(node))) < 2]
+    underflows_w = [node for node in underflows if len(list(cwgraph.neighbors(node))) < 2]
     graph.add_nodes_from([node for node in cwgraph.nodes if not graph.has_node(node)])
     worker_nu = [w for w in workers if all([cwgraph.nodes[n]['type'] != 'underflow' for n in graph.neighbors(w)])]
     worker_no = [w for w in workers if all([cwgraph.nodes[n]['type'] != 'overflow' for n in graph.neighbors(w)])]
-
+    if len(overflows_w+underflows_w) > 0 and len(worker_no+worker_nu) > 0:
+        raise ValueError('unassigned workers and unassigned stations')
     fs = list(set(worker_nu).intersection(worker_no))
     for w in fs:
         o, u = find_opt_stations(w, overflows, underflows, cwgraph)
@@ -269,12 +213,9 @@ def build_station_graph(data, starttime, stoptime):
     underflows = [i for i in vertices.index if vertices[i]['type'] == 'underflow']
     shuffle(overflows)
     shuffle(underflows)
-    m = np.min([len(overflows), len(underflows)])
-    overflows = overflows[:m]
-    underflows = underflows[:m]
 
     graphx.add_nodes_from(overflows+ underflows)
-    nx.set_node_attributes(graphx, {i: vertices[i] for i in vertices.index})
+    nx.set_node_attributes(graphx, {i: vertices[i] for i in (overflows + underflows)})
     for o in overflows:
         for u in underflows:
             graphx.add_edge(o, u, weight=edge2_cost(o, u, graphx))
