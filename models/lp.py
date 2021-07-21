@@ -23,9 +23,9 @@ class LP:
     def total_cost(self, matching, cwgraph):
         return sum([self.edge_cost(edge, cwgraph) for edge in matching])
 
-    def solve(self, cwgraph, worker, overflow, underflow):
+    def solve(self, cwgraph, workers, overflows, underflows):
         # define arrangements
-        possible_edges = [(w, o, u) for w in worker for o in overflow for u in underflow]
+        possible_edges = [(w, o, u) for w in workers for o in overflows for u in underflows]
 
         # make problem
         wap_model = pulp.LpProblem("WAP_Model", pulp.LpMinimize)
@@ -45,18 +45,17 @@ class LP:
                 "assignment_bound_%s" % str(vertex),
             )
 
-        for vertex in overflow:
+        for vertex in overflows:
             wap_model += (
                 pulp.lpSum([x[edge] for edge in possible_edges if vertex in edge]) <= 1,
                 "assignment_bound_%s" % str(vertex),
             )
-        for vertex in underflow:
+        for vertex in underflows:
             wap_model += (
                 pulp.lpSum([x[edge] for edge in possible_edges if vertex in edge]) <= 1,
                 "assignment_bound_%s" % str(vertex),
             )
         wap_model.solve()
-        # print("Status:", pulp.LpStatus[wap_model.status])
 
         matching = [edge for edge in possible_edges if x[edge].value() > 0]
         return matching, self.total_cost(matching, cwgraph)

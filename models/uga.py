@@ -1,12 +1,12 @@
 import copy
+from multiprocessing import Pool
 from random import shuffle
+
 import networkx as nx
 import numpy as np
-from scipy.special import softmax
-from multiprocessing import Pool
+import pandas as pd
 
-from tqdm import tqdm
-
+from graphprocessing import complete_graph, score_graph, get_entities
 from models.hs import RLS, HS
 
 
@@ -17,195 +17,350 @@ def euc_dis(x1, y1, x2, y2):
 class UGA:
     def __init__(self, meta_graph=None):
         self.meta_graph = meta_graph
+        self.overflows = []
+        self.underflows = []
+        self.workers = []
+        self.num_triplets = 0
 
     def build_lists(self):
-        self.overflow = [node for node in self.meta_graph.nodes() if self.meta_graph.nodes[node]['type'] == 'overflow']
-        self.workers = [node for node in self.meta_graph.nodes() if self.meta_graph.nodes[node]['type'] == 'worker']
-        self.underflow = [node for node in self.meta_graph.nodes() if
-                          self.meta_graph.nodes[node]['type'] == 'underflow']
-
-    def add_triplet(self, vertex, graph):
-        neighbors = list(self.meta_graph.neighbors(vertex))
-        shuffle(neighbors)
-        overflow = None
-        underflow = None
-        for overflow_ in neighbors:
-            if (not (overflow_ in list(graph.nodes()))) and self.meta_graph.nodes[overflow_]['type'] == 'overflow':
-                overflow = overflow_
-        for underflow_ in neighbors:
-            if (not (underflow_ in list(graph.nodes()))) and self.meta_graph.nodes[underflow_]['type'] == 'underflow':
-                underflow = underflow_
-        if overflow is not None and underflow is not None:
-            graph.add_node(overflow)
-            graph.add_node(underflow)
-            graph.add_node(vertex)
-            graph.add_edge(vertex, underflow)
-            graph.add_edge(vertex, overflow)
+        self.workers, self.overflows, self.underflows = get_entities(self.meta_graph)
+        self.num_triplets = min(len(self.overflows), len(self.workers), len(self.underflows))
 
     # each species is a complete of workers station triples
-    def build_matching(self):
+    def build_matching(self, _=None):
         graph = nx.Graph()
-
-        shuffle(self.workers)
-        for w in self.workers:
-            self.add_triplet(w, graph)
-        graph.add_nodes_from([i for i in self.meta_graph.nodes if not i in list(graph.nodes)])
+        os = self.overflows.copy()
+        us = self.underflows.copy()
+        shuffle(os)
+        shuffle(us)
+        graph.add_nodes_from(self.workers)
+        for w, o, u in zip(self.workers[:self.num_triplets], os[:self.num_triplets],
+                           us[:self.num_triplets]):
+            graph.add_edge(w, o)
+            graph.add_edge(w, u)
         return graph
 
-    def find_overflow(self, vertex):
-        while True:
-            node_ind = np.random.choice(range(len(self.overflow)))
-            if self.overflow[node_ind] != vertex:
-                return self.overflow[node_ind]
-
-    def find_underflow(self, vertex):
-        while True:
-            node_ind = np.random.choice(range(len(self.underflow)))
-            if self.underflow[node_ind] != vertex:
-                return self.underflow[node_ind]
-
-    def mutate(self, workers, to_replace, graph):
-        if self.meta_graph.nodes[to_replace]['type'] == 'overflow':
-            other = self.find_overflow(to_replace)
-        else:
-            other = self.find_underflow(to_replace)
-        if len(list(graph.neighbors(other))) > 0:
-            otherw = list(graph.neighbors(other))[0]
-
-            graph.add_edge(otherw, to_replace)
-            graph.remove_edge(otherw, other)
-        graph.add_edge(workesr, other)
-        graph.remove_edge(workers, to_replace)
-
-    def pick_edge(self, ref_station, edges):
-        for edge in edges:
-            for vertex in edges:
-                if self.meta_graph.nodes[vertex]['type'] == self.meta_graph.nodes[ref_station]['type']:
-                    return edge
-
-    def euc_fitness_ind(self, gene, spec):
-
-        w = 0
-        temp = {}
-        neighbors = list(spec.neighbors(gene))
-        if len(neighbors) != 2:
-            return 0
-        temp[self.meta_graph.nodes[neighbors[0]]['type']] = self.meta_graph.nodes[neighbors[0]]
-        temp[self.meta_graph.nodes[neighbors[1]]['type']] = self.meta_graph.nodes[neighbors[1]]
-        underflow_data = temp['underflow']
-        overflow_data = temp['overflow']
-        workers_data = self.meta_graph.nodes[gene]
-        return euc_dis(workers_data['xe'], workers_data['ye'], underflow_data['x'],
-                       underflow_data['y']) + euc_dis(workers_data['xs'], workers_data['ys'],
-                                                      overflow_data['x'], overflow_data['y']) + euc_dis(
-            underflow_data['x'], underflow_data['y'], overflow_data['x'], overflow_data['y'])
-
     def euc_fitness(self, spec):
-        return -sum([self.euc_fitness_ind(gene, spec) for gene in spec.nodes if
-                     self.meta_graph.nodes[gene]['type'] == 'worker'])
+        spec_ = complete_graph(spec.copy(), self.meta_graph)
+        return -score_graph(spec_, self.meta_graph)
 
-    def swap(self, workers, station, mate_station, spec):
-        # print('worker',worker,'station',station,'mate_station',mate_station)
-        # print('removed',worker,station)
-        spec.remove_edge(workers, station)
-        if len(list(spec.neighbors(mate_station))) > 0:
-            unemployed = list(spec.neighbors(mate_station))[0]
-            spec.remove_edge(unemployed, mate_station)
-            spec.add_edge(workers, mate_station)
-            pots = self.overflow if self.meta_graph.nodes[station]['type'] == 'overflow' else self.underflow
-            shuffle(pots)
-            for p in pots:
-                if len(list(spec.neighbors(p))) == 0:
-                    spec.add_edge(unemployed, p)
-                    return
-            print('NoStationFound')
-        else:
-            spec.add_edge(workers, mate_station)
-            # print('added',workers,mate_station)
+    def graph_to_list(self, graph):
+        genome = []
+        for w in self.workers:
+            neighbors = list(graph.neighbors(w))
+            if len(neighbors) == 2:
+                o = neighbors[0] if self.meta_graph.nodes[neighbors[0]]['type'] == 'overflow' else neighbors[1]
+                u = neighbors[0] if self.meta_graph.nodes[neighbors[0]]['type'] == 'underflow' else neighbors[1]
+            elif len(neighbors) == 1:
+                o = neighbors[0] if self.meta_graph.nodes[neighbors[0]]['type'] == 'overflow' else 'odummy' + w
+                u = neighbors[0] if self.meta_graph.nodes[neighbors[0]]['type'] == 'underflow' else 'udummy' + w
+            else:
+                o = 'odummy' + w
+                u = 'udummy' + w
+            genome += [o, u]
 
-    def run(self, sswap_rate, oswap_rate, gens, pop_size, spec_opt=None):
+
+        return genome
+
+    def list_to_graph(self, genome):
+        graph = nx.Graph()
+        graph.add_nodes_from(self.meta_graph.nodes)
+        for w, worker in enumerate(self.workers):
+            if not ('dummy' in genome[2 * w]):
+                graph.add_edge(worker, genome[w * 2])
+            if not ('dummy' in genome[2 * w + 1]):
+                graph.add_edge(worker, genome[w * 2 + 1])
+        return graph
+
+    def pmx(self, parent1, parent2):
+        data = list(set(parent1 + parent2))
+        parent1 = np.array([data.index(g) for g in parent1])
+        parent2 = np.array([data.index(g) for g in parent2])
+        if len(parent1) != pd.Series(parent1).nunique() or len(parent2) != pd.Series(parent2).nunique():
+            print(parent1,parent2)
+        child1 = np.array([np.nan] * len(parent1))
+        child2 = np.array([np.nan] * len(parent1))
+        start, stop = sorted([np.random.randint(0, len(parent1)), np.random.randint(0, len(parent2))])
+        while start == stop:
+            start, stop = sorted([np.random.randint(0, len(parent1)), np.random.randint(0, len(parent2))])
+        map1 = parent1[start:stop]
+        map2 = parent2[start:stop]
+        cut = np.array(range(start,stop))
+        child1[cut]=map2
+        child2[cut]=map1
+        mapping = [{n1:n2,n2:n1} for n1,n2 in zip(map1,map2)]
+        for parent, child in [(parent1,child1),(parent2,child2)]:
+            for i, node in enumerate(parent):
+                if not (i in cut):
+                    if not (node in child):
+                        child[i] = node
+                    else:
+                        guess = node
+                        used_maps= []
+                        while guess in child:
+                            map = {}
+                            finding = True
+                            for map in mapping:
+                                if finding and guess in map.keys() and not(map in used_maps):
+                                    guess = map[guess]
+                                    finding = False
+                                    used_maps.append(map)
+                            #print('in while')
+                        child[i] = guess
+                        #print('left while')
+        if len(child1) != pd.Series(child1).nunique() or len(child2) != pd.Series(child2).nunique():
+                print(child1, child2)
+        child1 = [data[int(g)] for g in child1]
+        child2 = [data[int(g)] for g in child2]
+        return child1, child2
+
+
+    def pmx___(self, parent1, parent2, r_a_b=None, ):
+        data = list(set(parent1+parent2))
+        parent1 = [data.index(g) for g in parent1]
+        parent2 = [data.index(g) for g in parent2]
+        if len(parent1) != pd.Series(parent1).nunique() or len(parent2) != pd.Series(parent2).nunique():
+            print(parent1,parent2)
+        parent1 = np.array(parent1)
+        parent2 = np.array(parent2)
+        child1 = copy.deepcopy(parent1)
+        child2 = copy.deepcopy(parent2)
+        a, b = sorted([np.random.randint(0, len(parent1)), np.random.randint(0, len(parent2))])
+        length = len(parent1)
+        min_a_b, max_a_b = min([a, b]), max([a, b])
+        if r_a_b is None:
+            r_a_b = range(min_a_b, max_a_b)
+        r_left = np.delete(range(length), r_a_b)
+        left_1, left_2 = child1[r_left], child2[r_left]
+        middle_1, middle_2 = child1[r_a_b], child2[r_a_b]
+        child1[r_a_b], child2[r_a_b] = middle_2, middle_1
+        mapping = [[], []]
+        for i, j in zip(middle_1, middle_2):
+            if j in middle_1 and i not in middle_2:
+                index = np.argwhere(middle_1 == j)[0, 0]
+                value = middle_2[index]
+                while True:
+                    if value in middle_1:
+                        index = np.argwhere(middle_1 == value)[0, 0]
+                        value = middle_2[index]
+                    else:
+                        break
+                mapping[0].append(i)
+                mapping[1].append(value)
+            elif i in middle_2:
+                pass
+            else:
+                mapping[0].append(i)
+                mapping[1].append(j)
+        for i, j in zip(mapping[0], mapping[1]):
+            if i in left_1:
+                left_1[np.argwhere(left_1 == i)[0, 0]] = j
+            elif i in left_2:
+                left_2[np.argwhere(left_2 == i)[0, 0]] = j
+            if j in left_1:
+                left_1[np.argwhere(left_1 == j)[0, 0]] = i
+            elif j in left_2:
+                left_2[np.argwhere(left_2 == j)[0, 0]] = i
+        child1[r_left], child2[r_left] = left_1, left_2
+        if len(child1) != pd.Series(child1).nunique() or len(child2) != pd.Series(child2).nunique():
+            print(child1, child2)
+        child1 = [data[g] for g in child1]
+        child2 = [data[g] for g in child2]
+
+
+        return child1, child2
+
+
+
+    def pmx__(self, parent1, parent2):
+        """
+                Implementation of Partially Mapped Crossover (PMX)
+                """
+        child1 = [None] * len(parent1)
+        child2 = [None] * len(parent1)
+        start, stop = sorted([np.random.randint(0, len(parent1)), np.random.randint(0, len(parent2))])
+        map1 = parent1[start:stop]
+        map2 = parent2[start:stop]
+        for i in range(start,stop):
+            child1[i] = parent2[i]
+            child2[i] = parent1[i]
+        if start != 0:
+            for i in range(start):
+                if not (parent1[i] in child1):
+                    child1[i] = parent1[i]
+                if not (parent2[i] in child2):
+                    child2[i] = parent2[i]
+        if stop != len(child1):
+            for i in range(stop,len(child1)):
+                if not (parent1[i] in child1):
+                    child1[i] = parent1[i]
+                if not (parent2[i] in child2):
+                    child2[i] = parent2[i]
+
+        pairs=[]
+        for m1, m2 in zip(map1, map2):
+            if m1 != m2:
+                pairs.append({m1, m2})
+
+        for i, node in enumerate(child1):
+            if node is None:
+                done_pairs = []
+                guess = parent1[i]
+                while guess in child1:
+                    pair = [pair for pair in pairs if guess in pair and not(pair in done_pairs)][0]
+                    done_pairs.append(pair)
+                    guess = list(set(pair)-{guess})[0]
+                child1[i] = guess
+        for i, node in enumerate(child2):
+            if node is None:
+                done_pairs = []
+                guess = parent2[i]
+                while guess in child2:
+                    pair = [pair for pair in pairs if guess in pair and not(pair in done_pairs)][0]
+                    done_pairs.append(pair)
+                    guess = list(set(pair)-{guess})[0]
+                child2[i] = guess
+        return child1, child2
+
+    def pmx_(self, parent1, parent2):
+        """
+        Implementation of Partially Mapped Crossover (PMX)
+        """
+        child1 = [None]*len(parent1)
+        child2 = [None]*len(parent1)
+        start, stop = sorted([np.random.randint(0, len(parent1)), np.random.randint(0, len(parent2))])
+        map1 = parent1[start:stop]
+        map2 = parent2[start:stop]
+        pairs = []
+        for m1, m2 in zip(map1, map2):
+            if m1 != m2:
+                pairs.append({m1, m2})
+        safe_mappings = {}
+        unsafe_pairs = []
+        unsafe_nodes = []
+        unsafe_node = None
+        for pair in pairs:
+            safe = True
+            for pair_ in pairs:
+                if len(pair.intersection(pair_)) == 1:
+                    safe = False
+                    unsafe_node = list(pair.intersection(pair_))[0]
+            if safe:
+                pairl = list(pair)
+                safe_mappings[pairl[0]] = pairl[1]
+                safe_mappings[pairl[1]] = pairl[0]
+            else:
+                unsafe_pairs.append(pair)
+                unsafe_nodes.append(unsafe_node)
+
+        for i, g in enumerate(parent1):
+            if g in safe_mappings.keys():
+                child1[i] = safe_mappings[g]
+        for i, g in enumerate(child2):
+            if g in safe_mappings.keys():
+                child2[i] = safe_mappings[g]
+        for child,parent in [(child1,parent1), (child2,parent2)]:
+            for i, node in enumerate(parent1):
+                if node in unsafe_nodes:
+                    pair1, pair2 = [pair for pair in unsafe_pairs if node in pair]
+                    if len(pair1 - set(child)) > 0:
+                        child[i] = list(pair1 - {node})[0]
+                    elif len(pair1 - set(child)) > 0:
+                        child[i] = list(pair2 - {node})[0]
+                    else:
+                        print('uh oh')
+        return child1, child2
+
+    def temp(self, n1, n2):
+        return n1['name'] == n2['name']
+
+    def add_names(self, pop):
+        for spec in pop:
+            nx.set_edge_attributes(spec, {edge: {'name': '_'.join(edge)} for edge in list(spec.edges)})
+            nx.set_node_attributes(spec, self.meta_graph.nodes)
+
+    def prune_duplicates(self, pairing):
+        spec, pop = pairing
+
+        if 0 == pop.index(spec):
+            return True
+        references = pop[:pop.index(spec)]
+        for ref in references:
+            if nx.is_isomorphic(spec, ref, self.temp, self.temp):
+                return False
+        return True
+
+    def run(self, gens, pop_size, spec_opt=None):
         # make a population
         self.build_lists()
         pop = [self.build_matching() for i in range(pop_size)]
+        init_pop = copy.deepcopy(pop)
+        # with Pool(processes=5) as pool:
+        #    pop = pool.map(self.build_matching, [None] * pop_size)
+        self.add_names(pop)
+        mask = [self.prune_duplicates((spec, pop)) for spec in pop]
+        pop = [spec for spec in pop if mask[pop.index(spec)]]
+        scores = [self.euc_fitness(score) for score in pop]
 
-        scores = []
-        bests = []
+        scores = np.array(scores) / sum(scores)
+        best_score = float('-inf')
+        best_graph = pop[0]
         for gen in range(gens):
             # get scores of species
-            with Pool(processes=4) as pool:
-                scores = pool.map(self.euc_fitness, pop)
-                
-            #scores = [self.euc_fitness(s) for s in pop]
-            bests.append(max(scores))
-            # if gen %50 ==0 and update_flag:
-            # print(min(scores),max(scores))
-            #print(scores)
-            scores = softmax(scores)
+            print("Pop Size", len(pop))
 
             selected = []
-            i = 0
-            distr = []
+            if len(pop) == 1:
+                print("UGA RSL Failed Pop at gen", gen)
+                return best_graph, best_score
             # while selecting pick a species
-            while len(selected) < len(pop) and gen != gens-1:
-                spec_ind = np.random.choice(list(range(len(pop))), p=scores)
-                # spec = pop[i]
-
-                distr.append(spec_ind)
-                spec_o = pop[spec_ind]
-                spec = copy.deepcopy(spec_o)
-                # for each gene (a triple)
-                for j, node in enumerate(spec.nodes):
-                    # swap with another pop
-                    edges = set(spec.edges)
-                    if self.meta_graph.nodes[node]['type'] != 'worker' and len(
-                            list(spec.neighbors(node))) > 0 and np.random.random() < sswap_rate:
-                        self.mutate(list(spec.neighbors(node))[0], node, spec)
-                        # print(edges.intersection(set(self.meta_graph.edges).intersection(set(spec.edges))))
-                for edge in spec.edges:
-                    edge = list(edge)
-                    if edge[0] in self.workers:
-                        workers_, station_ = edge[0], edge[1]
-                    else:
-                        workers_, station_ = edge[1], edge[0]
-
-                    if np.random.random() < oswap_rate:
-                        mate_stations_ = list(pop[np.random.choice(list(range(len(pop))), p=scores)].neighbors(workers_))
-                        mate_station_ = mate_stations_[0] if self.meta_graph.nodes[mate_stations_[0]]['type'] == \
-                                                             self.meta_graph.nodes[station_]['type'] else \
-                            mate_stations_[1]
-                        self.swap(workers_, station_, mate_station_, spec)
-
-                selected.append(spec)
-            if gen != gens-1:
-                pop=selected
+            for i in range(pop_size // 2):
+                ind1 = np.random.choice(list(range(len(pop))), p=scores)
+                ind2 = np.random.choice(list(range(len(pop))), p=scores)
+                gparent1 = pop[ind1].copy()
+                gparent2 = pop[ind2].copy()
+                while nx.is_isomorphic(gparent1, gparent2, self.temp, self.temp):
+                    gparent2 = pop[np.random.choice(list(range(len(pop))), p=scores)].copy()
+                parent1 = self.graph_to_list(gparent1)
+                parent2 = self.graph_to_list(gparent2)
+                child1, child2 = self.pmx(parent1, parent2)
+                gchild1 = self.list_to_graph(child1)
+                cgchild1 = complete_graph(gchild1, self.meta_graph)
+                score_graph(cgchild1, self.meta_graph)
+                gchild2 = self.list_to_graph(child2)
+                cgchild2 = complete_graph(gchild1, self.meta_graph)
+                score_graph(cgchild2, self.meta_graph)
+                selected.append(gchild1)
+                selected.append(gchild2)
+            pop = selected
+            self.add_names(pop)
+            #check for duplicates
+            for spec in pop:
+                if len(self.graph_to_list(spec)) != pd.Series(self.graph_to_list(spec)).nunique():
+                    print(spec)
             if not (spec_opt is None):
-                with Pool(processes=4) as pool:
+                # start = time.time()
+                 with Pool(processes=8) as pool:
                     pop = pool.map(spec_opt, pop)
-            #pop = [spec_opt(s) for s in selected]
-        return pop[np.argmax(scores)], np.max(bests), bests
+                # print("threading",time.time()-start)
+                #pop = [spec_opt(spec) for spec in pop]
+            for spec in pop:
+                if len(self.graph_to_list(spec)) != pd.Series(self.graph_to_list(spec)).nunique():
+                    print(spec)
+            self.add_names(pop)
+            mask = [self.prune_duplicates((spec, pop)) for spec in pop]
+            pop = [spec for spec in pop if mask[pop.index(spec)]]
+
+            scores = [self.euc_fitness(score) for score in pop]
+            scores = np.array(scores) / sum(scores)
+            if max(scores) > best_score:
+                best_graph = pop[np.argmax(scores)]
+                best_score = max(scores)
+        return best_graph, best_score
 
     def test(self, cwgraph):
         self.meta_graph = cwgraph
-        return self.run(0, 0.0002, 8, 24)
-
-    def find_optimal(self, cwgraph):
-        self.meta_graph = cwgraph
-        best_param = None
-        best_score = float('-inf')
-        oswaps = 10**np.arange(-10, 0, 0.1)
-        sswaps = 10**np.arange(-10, 0, 0.1)
-        iters = 50
-        gens = np.arange(1, iters, 1)
-        for i in tqdm(range(100)):
-            o = np.random.choice(oswaps)
-            s = np.random.choice(sswaps)
-            g = np.random.choice(gens)
-            score = self.run(s, o, g, int(iters/g))[1]
-            if score > best_score:
-                best_param = (s, o, g)
-                best_score = score
-        return best_param
-
+        return self.run(8, 24)
 
 
 class UGA_RLS(UGA):
@@ -213,17 +368,6 @@ class UGA_RLS(UGA):
         super().__init__(meta_graph)
         self.rsl = RLS()
         self.hs = HS()
-
-    def build_matching(self):
-        graph, score = self.rsl.optimize(self.meta_graph)
-
-        for v1 in graph.nodes:
-            for v2 in graph.nodes:
-                if graph.has_edge(v1, v2) and {self.meta_graph.nodes[v1]['type'],
-                                               self.meta_graph.nodes[v2]['type']} == {'overflow', 'underflow'}:
-                    graph.remove_edge(v1, v2)
-        graph.add_nodes_from([node for node in self.meta_graph.nodes if not graph.has_node(node)])
-        return graph
 
     def opt_species(self, graph):
         graph2 = copy.deepcopy(graph)
@@ -234,32 +378,8 @@ class UGA_RLS(UGA):
         graph3 = self.rsl.optimize(self.meta_graph, graph2)[0]
         graph3.remove_edges_from(station_pairings)
         graph3.add_nodes_from([node for node in self.meta_graph.nodes if not graph3.has_node(node)])
-
         return graph3
 
-    def run_(self, oswap_rate, gens, pop_size):
-        return super().run(0, oswap_rate, gens, pop_size, spec_opt=self.opt_species)
-
-    def find_optimal(self, cwgraph):
+    def test(self, cwgraph, gens=5, pop_size=10):
         self.meta_graph = cwgraph
-        best_param = None
-        best_score = float('-inf')
-        oswaps = 10**np.arange(-10, 0, 0.1)
-        gens = np.arange(1, 25, 1)
-        for i in range(10):
-            s = np.random.choice(oswaps)
-            g = np.random.choice(gens)
-            score = self.run_(s,g,int(25/g))[1]
-            if score > best_score:
-                best_param = (s,g)
-                best_score = score
-        return best_param
-
-    def test(self, cwgraph, gens=4, pop_size=3):
-        self.meta_graph = cwgraph
-        return self.run_(0.002, gens=gens, pop_size=pop_size)
-
-class RLS1(UGA_RLS):
-    def test(self, cwgraph, pop_size=5, gens=None):
-        self.meta_graph = cwgraph
-        return self.run_(0, gens=1, pop_size=5)
+        return self.run(gens=gens, pop_size=pop_size, spec_opt=self.opt_species)
