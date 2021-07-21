@@ -1,7 +1,9 @@
+import copy
+
 import networkx as nx
 import pulp
-import copy
-from tqdm import tqdm
+
+from graphprocessing import get_entities, edge_cost, score_graph, complete_graph
 
 
 class Local_Ratio:
@@ -9,25 +11,11 @@ class Local_Ratio:
     def euc_dis(self, x1, y1, x2, y2):
         return ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** .5
 
-    def edge_cost(self, edge, cwgraph):
-        return self.euc_dis(cwgraph.nodes[edge[2]]['x'], cwgraph.nodes[edge[2]]['y'], cwgraph.nodes[edge[0]]['xe'],
-                            cwgraph.nodes[edge[0]]['ye']) + self.euc_dis(cwgraph.nodes[edge[1]]['x'],
-                                                                         cwgraph.nodes[edge[1]]['y'],
-                                                                         cwgraph.nodes[edge[2]]['x'],
-                                                                         cwgraph.nodes[edge[2]]['y']) + self.euc_dis(
-            cwgraph.nodes[edge[1]]['x'], cwgraph.nodes[edge[1]]['y'], cwgraph.nodes[edge[0]]['xs'],
-            cwgraph.nodes[edge[0]]['ys'])
-
-    def total_cost(self, matching, cwgraph):
-        return sum([self.edge_cost(edge, cwgraph) for edge in matching])
-
     def neighborhood_weight(self, edge, possible_edges, x):
         return sum([x[edge_].value() for edge_ in possible_edges if len(set(edge).intersection(set(edge_))) > 0])
 
     def local_ratio(self, F, w):
         F = [edge for edge in F if w[str(edge)] > 0]
-
-        # print(len(F))
         if len(F) == 0:
             return F
         edge = F[0]
@@ -53,13 +41,10 @@ class Local_Ratio:
             G.add_edge(u, o)
         return G
 
-
     def solve(self, cwgraph):
-        workers = {node: {} for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'worker'}
-        overflow = {node: {} for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'overflow'}
-        underflow = {node: {} for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'underflow'}
+        workers, overflows, underflows = get_entities(cwgraph)
         # define arrangements
-        possible_edges = [(w, o, u) for w in workers for o in overflow for u in underflow]
+        possible_edges = [(w, o, u) for w in workers for o in overflows for u in underflows]
 
         # make problem
         wap_model = pulp.LpProblem("WAP_Model", pulp.LpMaximize)
@@ -70,7 +55,7 @@ class Local_Ratio:
         )
         lc = 10000000
         # create objective function
-        wap_model += pulp.lpSum([x[edge] * (lc - self.edge_cost(edge, cwgraph)) for edge in possible_edges])
+        wap_model += pulp.lpSum([x[edge] * (lc - edge_cost(*edge, cwgraph)) for edge in possible_edges])
 
         # contrain weights to sum to 1
         for vertex in list(cwgraph.nodes):
@@ -83,24 +68,21 @@ class Local_Ratio:
         non_zero = [edge for edge in possible_edges if x[edge].value() > 0]
         f = []
         possible_edges_ = sorted(copy.deepcopy(possible_edges), key=lambda e: self.neighborhood_weight(e, non_zero, x))
-
-        for e in range(len(possible_edges_)):
+        num_edges = len(possible_edges_)
+        for e in range(num_edges):
             i = 0
             edge = possible_edges_[i]
             while self.neighborhood_weight(edge, non_zero, x) > 2:
-                # print(neighborhood_weight(edge,non_zero,x))
                 i += 1
                 edge = possible_edges_[i]
-                # print(edge)
             possible_edges_.pop(i)
             if edge in non_zero:
                 non_zero.remove(edge)
             f.append(edge)
-        w_dict = {str(edge): x[edge].value() for edge in possible_edges}
-        # print('starting ratio')
-        # print(str(w_dict)[:300])
+        w_dict = {str(edge): x[edge].value() for edge in f}
         matching = self.local_ratio(f, w_dict)
-        return self.matching_to_graph(matching,cwgraph), self.total_cost(matching, cwgraph)
+        matching_graph = complete_graph(self.matching_to_graph(matching, cwgraph),cwgraph)
+        return matching_graph, score_graph(matching_graph, cwgraph)
 
     def test(self, graph):
         return self.solve(graph)
