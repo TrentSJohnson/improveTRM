@@ -10,8 +10,8 @@ from models.uga import UGA_RLS
 
 
 class Testing:
-    def test_(self, algorithms, data, interval, ratios, radius, begin_interval, end_interval, graph_min=10,
-              graph_max=300):
+    def test_(self, algorithms, data, interval, ratios, radius, begin_interval, end_interval, graph_min=100,
+              graph_max=400):
         print('started thread')
         filtered_data = data
 
@@ -33,10 +33,13 @@ class Testing:
         tries = 0
         while len(cwgraph_min.nodes) < graph_min or len(cwgraph_max.nodes) > graph_max:
             tries += 1
+            if tries == 10:
+                tries = 0
+                start_time_dt = filtered_data[start_time][np.random.choice(
+                    filtered_data.index)]
             print('failed min:', len(cwgraph_min.nodes))
             print('failed max:', len(cwgraph_max.nodes))
-            adj = 1/(tries+1)
-            m *= graph_min/len(cwgraph_min.nodes)*(1-adj) if len(cwgraph_min.nodes) < graph_min else graph_max/len(cwgraph_max.nodes)*adj
+            m *= graph_min/len(cwgraph_min.nodes) if len(cwgraph_min.nodes) < graph_min else graph_max/len(cwgraph_max.nodes)
             td = timedelta(minutes=m * interval)
             cwgraph_min = build_cwgraph(
                 data, start_time_dt, start_time_dt + td, radius=radius, ratio=min(ratios))

@@ -5,6 +5,7 @@ from random import shuffle
 import networkx as nx
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 
 from graphprocessing import complete_graph, score_graph, get_entities
 from models.hs import RLS, HS
@@ -24,18 +25,20 @@ class UGA:
 
     def build_lists(self):
         self.workers, self.overflows, self.underflows = get_entities(self.meta_graph)
-        self.num_triplets = min(len(self.overflows), len(self.workers), len(self.underflows))
+
 
     # each species is a complete of workers station triples
     def build_matching(self, _=None):
         graph = nx.Graph()
+        ws = self.workers.copy()
         os = self.overflows.copy()
         us = self.underflows.copy()
         shuffle(os)
         shuffle(us)
-        graph.add_nodes_from(self.workers)
-        for w, o, u in zip(self.workers[:self.num_triplets], os[:self.num_triplets],
-                           us[:self.num_triplets]):
+        shuffle(ws)
+        m = min(len(self.overflows), len(self.workers), len(self.underflows))
+        graph.add_nodes_from(self.meta_graph)
+        for w, o, u in zip(ws[:m], os[:m], us[:m]):
             graph.add_edge(w, o)
             graph.add_edge(w, u)
         return graph
@@ -300,12 +303,12 @@ class UGA:
         self.add_names(pop)
         mask = [self.prune_duplicates((spec, pop)) for spec in pop]
         pop = [spec for spec in pop if mask[pop.index(spec)]]
-        scores = [self.euc_fitness(score) for score in pop]
+        scores = [self.euc_fitness(complete_graph(score,self.meta_graph)) for score in pop]
 
         scores = np.array(scores) / sum(scores)
         best_score = float('-inf')
         best_graph = pop[0]
-        for gen in range(gens):
+        for gen in tqdm(range(gens)):
             # get scores of species
             print("Pop Size", len(pop))
 
@@ -325,19 +328,15 @@ class UGA:
                 parent2 = self.graph_to_list(gparent2)
                 child1, child2 = self.pmx(parent1, parent2)
                 gchild1 = self.list_to_graph(child1)
-                cgchild1 = complete_graph(gchild1, self.meta_graph)
-                score_graph(cgchild1, self.meta_graph)
                 gchild2 = self.list_to_graph(child2)
-                cgchild2 = complete_graph(gchild1, self.meta_graph)
-                score_graph(cgchild2, self.meta_graph)
+                if len(self.graph_to_list(gchild1)) != pd.Series(self.graph_to_list(gchild1)).nunique():
+                    print(gchild1)
                 selected.append(gchild1)
+                if len(self.graph_to_list(gchild2)) != pd.Series(self.graph_to_list(gchild2)).nunique():
+                    print(gchild2)
                 selected.append(gchild2)
             pop = selected
-            self.add_names(pop)
             #check for duplicates
-            for spec in pop:
-                if len(self.graph_to_list(spec)) != pd.Series(self.graph_to_list(spec)).nunique():
-                    print(spec)
             if not (spec_opt is None):
                 # start = time.time()
                  with Pool(processes=8) as pool:
@@ -351,22 +350,22 @@ class UGA:
             mask = [self.prune_duplicates((spec, pop)) for spec in pop]
             pop = [spec for spec in pop if mask[pop.index(spec)]]
 
-            scores = [self.euc_fitness(score) for score in pop]
+            scores = [self.euc_fitness(complete_graph(graph, self.meta_graph)) for graph in pop]
             scores = np.array(scores) / sum(scores)
             if max(scores) > best_score:
-                best_graph = pop[np.argmax(scores)]
+                best_graph = complete_graph(pop[np.argmax(scores)], self.meta_graph)
                 best_score = max(scores)
         return best_graph, best_score
 
     def test(self, cwgraph):
         self.meta_graph = cwgraph
-        return self.run(8, 24)
+        self.workers, self.overflows, self.underflows = get_entities(cwgraph)
+        return self.run(gens=4, pop_size=12)
 
 
 class UGA_RLS(UGA):
     def __init__(self, meta_graph=None):
         super().__init__(meta_graph)
-        self.rsl = RLS()
         self.hs = HS()
 
     def opt_species(self, graph):
@@ -375,11 +374,11 @@ class UGA_RLS(UGA):
                             self.meta_graph.nodes[n1]['type'] == 'overflow' and self.meta_graph.nodes[n2][
                                 'type'] == 'underflow']
         graph2.add_edges_from(station_pairings)
-        graph3 = self.rsl.optimize(self.meta_graph, graph2)[0]
+        graph3 = self.hs.search(graph2, self.meta_graph)[0]
         graph3.remove_edges_from(station_pairings)
         graph3.add_nodes_from([node for node in self.meta_graph.nodes if not graph3.has_node(node)])
         return graph3
 
-    def test(self, cwgraph, gens=5, pop_size=10):
+    def test(self, cwgraph, gens=4, pop_size=10):
         self.meta_graph = cwgraph
         return self.run(gens=gens, pop_size=pop_size, spec_opt=self.opt_species)
