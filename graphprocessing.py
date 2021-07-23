@@ -27,18 +27,17 @@ def edge_cost(n1, n2, n3, cwgraph):
     """
     Finds which node is the worker overflow and underflow and finds the euc_dis of the nodes
     """
-    n1t = cwgraph.nodes[n1]['type']
-    n2t = cwgraph.nodes[n2]['type']
+    nodes = cwgraph.nodes()
+    n1t = nodes[n1]['type']
+    n2t = nodes[n2]['type']
     w = n1 if n1t == 'worker' else (n2 if n2t == 'worker' else n3)
     o = n1 if n1t == 'overflow' else (n2 if n2t == 'overflow' else n3)
     u = n1 if n1t == 'underflow' else (n2 if n2t == 'underflow' else n3)
-    return euc_dis(cwgraph.nodes[w]['xe'], cwgraph.nodes[w]['ye'], cwgraph.nodes[u]['x'],
-                   cwgraph.nodes[u]['y']) + euc_dis(cwgraph.nodes[w]['xs'], cwgraph.nodes[w]['ys'],
-                                                    cwgraph.nodes[o]['x'],
-                                                    cwgraph.nodes[o]['y']) + euc_dis(cwgraph.nodes[o]['x'],
-                                                                                     cwgraph.nodes[o]['y'],
-                                                                                     cwgraph.nodes[u]['x'],
-                                                                                     cwgraph.nodes[u]['y'])
+    return euc_dis(nodes[w]['xe'], nodes[w]['ye'], nodes[u]['x'], nodes[u]['y']) + euc_dis(nodes[w]['xs'],
+                                                                                           nodes[w]['ys'],
+                                                                                           nodes[o]['x'],
+                                                                                           nodes[o]['y']) + euc_dis(
+        nodes[o]['x'], nodes[o]['y'], nodes[u]['x'], nodes[u]['y'])
 
 
 def edge2_cost(n1, n2, cwgraph):
@@ -74,12 +73,14 @@ def find_opt_end(w, o, us, cwgraph):
     Returns: str    
         the optimal end node
     """
-    if len(us) == 1:
-        return us[0]
-    dis = edge_cost(us[0], o, w, cwgraph)
-    recu = find_opt_end(w, o, us[1:], cwgraph)
-    recdis = edge_cost(recu, o, w, cwgraph)
-    return us[0] if recdis > dis else recu
+    best_score = float('inf')
+    best_u = None
+    for u in us:
+        dis = edge_cost(w, o, u, cwgraph)
+        if dis < best_score:
+            best_u = u
+            best_score = dis
+    return best_u
 
 
 def find_opt_start(w, u, os, cwgraph):
@@ -97,22 +98,26 @@ def find_opt_start(w, u, os, cwgraph):
     Returns: str
         the optimal start node
     """
-    if len(os) == 1:
-        return os[0]
-    dis = edge_cost(os[0], u, w, cwgraph)
-    reco = find_opt_start(w, u, os[1:], cwgraph)
-    recdis = edge_cost(reco, u, w, cwgraph)
-    return os[0] if recdis > dis else reco
+    best_score = float('inf')
+    best_o = None
+    for o in os:
+        dis = edge_cost(w, o, u, cwgraph)
+        if dis < best_score:
+            best_o = o
+            best_score = dis
+    return best_o
 
 
 def find_opt_stations(w, os, us, cwgraph):
-    if len(os) == 1:
-        return os[0], find_opt_end(w, os[0], us, cwgraph)
-    u = find_opt_end(w, os[0], us, cwgraph)
-    dis = edge_cost(w, os[0], u, cwgraph)
-    reco, recu = find_opt_stations(w, os[1:], us, cwgraph)
-    recdis = edge_cost(reco, recu, w, cwgraph)
-    return (os[0], u) if recdis > dis else (reco, recu)
+    best_score = float('inf')
+    best_s = None
+    for o in os:
+        u = find_opt_end(w, o, us, cwgraph)
+        dis = edge_cost(w, o, u, cwgraph)
+        if dis < best_score:
+            best_s = (o, u)
+            best_score = dis
+    return best_s
 
 
 def check_fully_assigned(graph, cwgraph):
@@ -133,7 +138,7 @@ def score_graph(graph, cwgraph):
     workers = [node for node in cwgraph.nodes() if cwgraph.nodes[node]['type'] == 'worker']
     c = 0
     for w in workers:
-        if(len(list(graph.neighbors(w)))>2):
+        if (len(list(graph.neighbors(w))) > 2):
             print('f')
         s1, s2 = graph.neighbors(w)
         u = s1 if cwgraph.nodes[s1]['type'] == 'underflow' else s2

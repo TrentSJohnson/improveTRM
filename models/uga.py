@@ -144,7 +144,7 @@ class UGA:
                 print("UGA RSL Failed Pop at gen", gen)
                 return best_graph, best_score
             # while selecting pick a species
-            for i in range(pop_size // 2):
+            for i in range(pop_size):
                 ind1 = np.random.choice(list(range(len(pop))), p=scores)
                 ind2 = np.random.choice(list(range(len(pop))), p=scores)
                 gparent1 = pop[ind1].copy()
@@ -161,7 +161,12 @@ class UGA:
                     print(gchild2)
 
                 selected.append(gchild2)
-            pop = selected
+            pool = []
+            for spec in selected:
+                if not self.detect_duplicate(spec, pop):
+                    pool.append(spec)
+            pool = sorted(pool, key=lambda x: self.euc_fitness(complete_graph(x)))
+            pop = pool[:min([len(pool), pop_size])]
             # check for duplicates
             if not (spec_opt is None):
                 print('optimizing')
@@ -178,10 +183,10 @@ class UGA:
             if max(scores) > best_score:
                 best_graph = complete_graph(pop[np.argmax(scores)], self.meta_graph)
                 best_score = max(scores)
-            for spec in pop:
-                if self.detect_duplicate(spec, pop):
-                    print('detected duplicates at gen', i)
-                    return best_graph, best_score
+            if len(pop) < pop_size:
+                print('population size less than population size')
+                return best_graph, best_score
+                    
 
         return best_graph, best_score
 
