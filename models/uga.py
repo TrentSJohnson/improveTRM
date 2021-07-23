@@ -1,4 +1,5 @@
 import copy
+import time
 from multiprocessing import Pool
 from random import shuffle
 import networkx as nx
@@ -115,6 +116,9 @@ class UGA:
             nx.set_edge_attributes(spec, {edge: {'name': '_'.join(edge)} for edge in list(spec.edges)})
             nx.set_node_attributes(spec, self.meta_graph.nodes)
 
+    def complete_score(self, graph):
+        return score_graph(complete_graph(graph, self.meta_graph), self.meta_graph)
+
     def detect_duplicate(self, spec, pop):
         specl = self.graph_to_list(spec)
         if 0 == pop.index(spec):
@@ -163,9 +167,9 @@ class UGA:
                 selected.append(gchild2)
             pool = []
             for spec in selected:
-                if not self.detect_duplicate(spec, pop):
+                if not self.detect_duplicate(spec, selected):
                     pool.append(spec)
-            pool = sorted(pool, key=lambda x: self.euc_fitness(complete_graph(x)))
+            pool = sorted(pool, key=lambda x: self.euc_fitness(complete_graph(x, self.meta_graph)))
             pop = pool[:min([len(pool), pop_size])]
             # check for duplicates
             if not (spec_opt is None):
@@ -178,7 +182,11 @@ class UGA:
                 if len(self.graph_to_list(spec)) != pd.Series(self.graph_to_list(spec)).nunique():
                     print(spec)
             self.add_names(pop)
-            scores = [self.euc_fitness(complete_graph(graph, self.meta_graph)) for graph in pop]
+            start = time.time()
+            #scores = [self.euc_fitness(complete_graph(graph, self.meta_graph)) for graph in pop]
+            with Pool(processes=8) as pool:
+                scores = pool.map(self.complete_score, pop)
+            print('scoreing took',time.time()-start,'seconds')
             scores = np.array(scores) / sum(scores)
             if max(scores) > best_score:
                 best_graph = complete_graph(pop[np.argmax(scores)], self.meta_graph)
@@ -212,6 +220,6 @@ class UGA_RLS(UGA):
         graph3.add_nodes_from([node for node in self.meta_graph.nodes if not graph3.has_node(node)])
         return graph3
 
-    def test(self, cwgraph, gens=4, pop_size=10):
+    def test(self, cwgraph, gens=5, pop_size=8):
         self.meta_graph = cwgraph
         return self.run(gens=gens, pop_size=pop_size, spec_opt=self.opt_species)
