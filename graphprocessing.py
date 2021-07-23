@@ -236,10 +236,10 @@ def build_cwgraph(data, starttime, stoptime, ratio, radius):
     Builds a graph with 
     """
     graph = build_station_graph(data, starttime, stoptime)
-    n_workers = int(len(graph.nodes) / 2 * ratio)
     workers = [str(i) for i in range(n_workers)]
     filtered_data = data[(data[start_time] >= starttime) & (data[start_time] <= stoptime)].dropna()
     cgraph = cloned_station_vertices(graph)
+    n_workers = int(len(cgraph.nodes) / 2 * ratio)
     overflow = [node for node in cgraph.nodes() if cgraph.nodes[node]['type'] == 'overflow']
     underflow = [node for node in cgraph.nodes() if cgraph.nodes[node]['type'] == 'underflow']
     worker_data = []
@@ -258,9 +258,9 @@ def build_cwgraph(data, starttime, stoptime, ratio, radius):
         else:
             xe, ye, _, __ = utm.from_latlon(filtered_data.loc[i, 'end_lat'], filtered_data.loc[i, 'end_lng'])
         worker_data.append({'type': 'worker', 'change': 0, 'xs': xs + radius * (1 - 2 * np.random.random()),
-                            'ys': ys + 500 * (1 - 2 * np.random.random()),
+                            'ys': ys + radius * (1 - 2 * np.random.random()),
                             'xe': xe + radius * (1 - 2 * np.random.random()),
-                            'ye': ye + 500 * (1 - 2 * np.random.random()),
+                            'ye': ye + radius * (1 - 2 * np.random.random()),
                             'name': str(len(worker_data))})
     cgraph.add_nodes_from(workers)
     nx.set_node_attributes(cgraph, {i: w for i, w in zip(workers, worker_data)})
@@ -281,10 +281,9 @@ def cloned_station_vertices(graphx):
                 i = i + 1
                 new_node_name = str(node) + str(i)
                 graphx.add_node(new_node_name, **graphx.nodes[node])
-                new_node_data = graphx.nodes[new_node_name]
                 for node_ in graphx.nodes:
                     if graphx.nodes[node]['type'] != graphx.nodes[node_]['type']:
-                        graphx.add_edge(node_, new_node_name, **new_node_data)
+                        graphx.add_edge(node_, new_node_name)
     workers, overflows, underflows = get_entities(graphx)
     m = min((len(overflows), len(underflows)))
     shuffle(overflows)
