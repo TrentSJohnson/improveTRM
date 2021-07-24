@@ -236,10 +236,10 @@ def build_cwgraph(data, starttime, stoptime, ratio, radius):
     Builds a graph with 
     """
     graph = build_station_graph(data, starttime, stoptime)
-    workers = [str(i) for i in range(n_workers)]
     filtered_data = data[(data[start_time] >= starttime) & (data[start_time] <= stoptime)].dropna()
     cgraph = cloned_station_vertices(graph)
     n_workers = int(len(cgraph.nodes) / 2 * ratio)
+    workers = [str(i) for i in range(n_workers)]
     overflow = [node for node in cgraph.nodes() if cgraph.nodes[node]['type'] == 'overflow']
     underflow = [node for node in cgraph.nodes() if cgraph.nodes[node]['type'] == 'underflow']
     worker_data = []
